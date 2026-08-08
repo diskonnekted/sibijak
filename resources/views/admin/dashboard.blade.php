@@ -39,6 +39,61 @@
       </div>
     @endif
 
+    <!-- PENDING VERIFICATIONS SECTION (ONLY FOR ADMIN & EXAMINER) -->
+    @if($currentRole !== 'kontraktor' && isset($pendingVerifications) && $pendingVerifications->count() > 0)
+      <div class="bg-amber-50/50 border border-amber-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center gap-2 text-amber-800">
+          <i class="ph-fill ph-bell text-xl"></i>
+          <h2 class="text-xs font-extrabold tracking-wide uppercase">Verifikasi Laporan Progres Baru ({{ $pendingVerifications->count() }} Pengajuan)</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          @foreach($pendingVerifications as $pv)
+            <div class="bg-white border border-amber-200 rounded-xl p-4 flex flex-col justify-between shadow-sm space-y-4">
+              <div class="space-y-2">
+                <div class="flex justify-between items-start gap-2">
+                  <span class="text-[9px] font-bold text-gov-600 bg-gov-50 px-2 py-0.5 rounded uppercase tracking-wider">{{ $pv->contractor->name }}</span>
+                  <span class="text-[9px] font-mono text-slate-400">{{ date('d M Y H:i', strtotime($pv->reported_at)) }}</span>
+                </div>
+                <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ $pv->nama_pekerjaan }}</h3>
+              </div>
+
+              <!-- Reported Progress Info with Photo -->
+              <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex gap-3 items-center">
+                <img src="{{ $pv->reported_photo }}" class="w-16 h-12 object-cover rounded border border-slate-200 flex-shrink-0" alt="Foto Progres">
+                <div class="min-w-0">
+                  <span class="block text-[9px] font-bold text-slate-400 uppercase">Progres Diajukan</span>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-xs font-bold text-slate-500 line-through">{{ number_format($pv->progress, 0) }}%</span>
+                    <i class="ph-bold ph-arrow-right text-slate-400 text-xs"></i>
+                    <span class="text-xs font-extrabold text-gov-600 bg-gov-100 px-1.5 py-0.5 rounded">{{ number_format($pv->reported_progress, 0) }}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="flex gap-2">
+                <form action="{{ route('mobile.pengawas.verify', $pv) }}" method="POST" class="flex-1">
+                  @csrf
+                  <input type="hidden" name="action" value="reject">
+                  <button type="submit" class="w-full py-1.5 text-[10px] font-bold uppercase text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg active:scale-[0.98] transition-all">
+                    Tolak
+                  </button>
+                </form>
+                <form action="{{ route('mobile.pengawas.verify', $pv) }}" method="POST" class="flex-1">
+                  @csrf
+                  <input type="hidden" name="action" value="approve">
+                  <button type="submit" class="w-full py-1.5 text-[10px] font-bold uppercase text-white bg-gov-900 hover:bg-gov-950 rounded-lg active:scale-[0.98] transition-all shadow-sm">
+                    Setujui
+                  </button>
+                </form>
+              </div>
+            </div>
+          @endforeach
+        </div>
+      </div>
+    @endif
+
     <!-- QUICK METRICS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="bg-white p-6 rounded border border-slate-200 shadow-sm flex items-center justify-between">

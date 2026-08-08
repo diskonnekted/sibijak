@@ -174,6 +174,14 @@ class DashboardController extends Controller
 
         if (auth()->attempt($credentials, $request->has('remember'))) {
             $request->session()->regenerate();
+            
+            // Redirect based on role to optimized mobile layouts if applicable
+            $user = auth()->user();
+            if ($user->role === 'kontraktor') {
+                return redirect()->route('mobile.kontraktor');
+            } elseif ($user->role === 'pemeriksa_lapangan') {
+                return redirect()->route('mobile.pengawas');
+            }
             return redirect()->intended(route('admin.dashboard'));
         }
 
@@ -225,7 +233,10 @@ class DashboardController extends Controller
         $regulations = Regulation::all();
         $news = NewsItem::all();
 
-        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news'));
+        // Get pending verification projects for admin dashboard alert
+        $pendingVerifications = Project::where('verification_status', 'pending')->with('contractor')->get();
+
+        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications'));
     }
 
     // Admin Map Monitoring Page filtered by role
@@ -439,7 +450,6 @@ class DashboardController extends Controller
                 return redirect()->back()->with('error', 'Akses ditolak. Anda tidak berwenang mengedit proyek ini.');
             }
 
-            // Contractor can only update basic fields (excluding progress, status, inspection date)
             $validated = $request->validate([
                 'nama_pekerjaan' => 'required|string|max:255',
                 'nilai_kontrak' => 'required|numeric|min:0',
@@ -458,7 +468,6 @@ class DashboardController extends Controller
 
         // 2. Field Examiner Restrictions
         if ($user->role === 'pemeriksa_lapangan') {
-            // Examiner can ONLY update progress, status, and tanggal_pemeriksaan
             $validated = $request->validate([
                 'status' => 'required|string',
                 'progress' => 'required|numeric|min:0|max:100',
@@ -498,5 +507,91 @@ class DashboardController extends Controller
 
         $project->delete();
         return redirect()->route('admin.dashboard')->with('success', 'Pekerjaan berhasil dihapus.');
+    }
+
+    // MOBILE: Contractor Main Page
+    public function mobileContractor()
+    {
+        $user = auth()->user();
+        if ($user->role !== 'kontraktor') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Halaman ini khusus untuk Pelaksana/Kontraktor.');
+        }
+
+        $contractor = Contractor::find($user->contractor_id);
+        $projects = Project::where('contractor_id', $user->contractor_id)->get();
+
+        return view('mobile.contractor', compact('contractor', 'projects', 'user'));
+    }
+
+    // MOBILE: Contractor Submit Progress Update & Upload Photo
+    public function mobileContractorSubmitReport(Request $request, Project $project)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'kontraktor' || $project->contractor_id !== $user->contractor_id) {
+            return redirect()->back()->with('error', 'Akses ditolak.');
+        }
+
+        $validated = $request->validate([
+            'progress' => 'required|numeric|min:0|max:100',
+            'photo' => 'nullable|image|max:2048'
+        ]);
+
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('projects', 'public');
+            $project->reported_photo = '/storage/' . $path;
+        } else {
+            // Mock dynamic high-fidelity photo fallback
+            $project->reported_photo = 'https://picsum.photos/seed/report-' . $project->id . '-' . rand(1, 1000) . '/600/350';
+        }
+
+        $project->reported_progress = $validated['progress'];
+        $project->reported_at = now();
+        $project->verification_status = 'pending';
+        $project->save();
+
+        return redirect()->back()->with('success', 'Laporan progres berhasil diajukan dan sedang menunggu verifikasi pengawas.');
+    }
+
+    // MOBILE: Supervisor/Examiner Main Page
+    public function mobileSupervisor()
+    {
+        $user = auth()->user();
+        if ($user->role !== 'pemeriksa_lapangan') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Halaman ini khusus untuk Pengawas/Pemeriksa Lapangan.');
+        }
+
+        $pendingProjects = Project::where('verification_status', 'pending')->with('contractor')->get();
+        $allProjects = Project::with('contractor')->get();
+
+        return view('mobile.supervisor', compact('pendingProjects', 'allProjects', 'user'));
+    }
+
+    // MOBILE: Supervisor Approve/Reject Report
+    public function mobileSupervisorVerifyReport(Request $request, Project $project)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'pemeriksa_lapangan' && $user->role !== 'admin_pupr') {
+            return redirect()->back()->with('error', 'Akses ditolak.');
+        }
+
+        $action = $request->input('action'); // approve or reject
+
+        if ($action === 'approve') {
+            $project->progress = $project->reported_progress;
+            if ($project->progress >= 100) {
+                $project->status = 'Selesai';
+            } else {
+                $project->status = 'Pelaksanaan';
+            }
+            $project->tanggal_pemeriksaan = now()->toDateString();
+            $project->verification_status = 'verified';
+        } else {
+            // Reject report
+            $project->verification_status = 'clean';
+        }
+
+        $project->save();
+
+        return redirect()->back()->with('success', 'Status progres fisik berhasil diverifikasi.');
     }
 }

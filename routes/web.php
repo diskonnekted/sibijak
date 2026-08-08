@@ -47,3 +47,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::put('/projects/{project}', [DashboardController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [DashboardController::class, 'deleteProject'])->name('projects.delete');
 });
+
+// Mobile Views protected by auth
+Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () {
+    Route::get('/kontraktor', [DashboardController::class, 'mobileContractor'])->name('kontraktor');
+    Route::post('/kontraktor/report/{project}', [DashboardController::class, 'mobileContractorSubmitReport'])->name('kontraktor.report');
+    
+    Route::get('/pengawas', [DashboardController::class, 'mobileSupervisor'])->name('pengawas');
+    Route::post('/pengawas/verify/{project}', [DashboardController::class, 'mobileSupervisorVerifyReport'])->name('pengawas.verify');
+});
