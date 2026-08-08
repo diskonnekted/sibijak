@@ -1,59 +1,83 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SIBIJAK Banjarnegara - Sistem Informasi Pembina Jasa Konstruksi & Fisik
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi Web & Mobile Dinas Pekerjaan Umum dan Penataan Ruang (PUPR) Kabupaten Banjarnegara untuk melakukan monitoring proyek fisik, evaluasi kinerja kontraktor, pengawasan berkala, serta pelaporan progres berbasis spasial.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 👥 Pengguna Uji Coba & Hak Akses (Credentials)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Sistem menggunakan enkripsi bawaan dan dapat diuji menggunakan data seeder berikut (Password untuk semua akun: `password`):
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Peran (Role) | Alamat Email | Target Utama & Hak Akses |
+| :--- | :--- | :--- |
+| **Admin PUPR** | `admin@pupr.banjarnegara.go.id` | Akses Kontrol Penuh (CRUD Kontraktor/Proyek, Analisa & Rekomendasi, Verifikasi Pengajuan) |
+| **Kontraktor (Pelaksana)** | `kontraktor@sikap.id` | Mengelola data perusahaan sendiri & melakukan pelaporan foto progres di lokasi proyek |
+| **Pengawas Lapangan** | `pemeriksa@sikap.id` | Memantau seluruh proyek & memverifikasi progress fisik yang diajukan oleh kontraktor |
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📱 Panduan Penggunaan Halaman Mobile
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Aplikasi seluler didesain responsif dengan navigasi menu bawah (*Bottom Navigation Bar*) untuk menunjang aktivitas lapangan.
 
-## Laravel Sponsors
+### 👷 1. Alur Kerja Peran Kontraktor (Pelaksana)
+Rute Akses: `http://127.0.0.1:8000/mobile/kontraktor`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Masuk Log (Log In)**: Akses rute mobile menggunakan email `kontraktor@sikap.id`. Sistem akan mengarahkan secara otomatis ke dashboard mobile kontraktor.
+2. **Tab Proyek (Bottom Nav - Proyek)**: Halaman utama menampilkan daftar paket pekerjaan fisik yang sedang dikerjakan oleh perusahaan pelaksana terkait lengkap dengan status target dan progress bar.
+3. **Mengajukan Progres Baru (Lapor)**:
+   * Klik tombol **"Laporkan Progres Baru"** pada kartu pekerjaan.
+   * Masukkan persentase capaian kemajuan fisik baru (%) pada kolom isian.
+   * Pilih berkas foto dokumentasi visual proyek terbaru menggunakan tombol unggah foto.
+   * Klik **"Kirim Laporan"**. Pengajuan akan masuk ke dalam antrean pemeriksaan dengan status *Menunggu Review*.
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 🔍 2. Alur Kerja Peran Pengawas Lapangan (Pemeriksa)
+Rute Akses: `http://127.0.0.1:8000/mobile/pengawas`
 
-## Contributing
+1. **Masuk Log (Log In)**: Akses rute mobile menggunakan email `pemeriksa@sikap.id`.
+2. **Tab Verifikasi (Bottom Nav - Verifikasi)**:
+   * Menampilkan daftar antrean laporan progress fisik yang diajukan oleh para kontraktor pelaksana.
+   * Menampilkan rincian nama pekerjaan, nama kontraktor, persentase kenaikan progres, serta preview gambar/foto bukti fisik proyek di lapangan.
+   * Pengawas dapat mengeklik **Setujui** untuk memvalidasi progress ke dalam data spasial utama, atau mengeklik **Tolak** untuk membatalkan pengajuan.
+3. **Tab Peta (Bottom Nav - Peta Spasial)**:
+   * Menampilkan peta Leaflet interaktif sebaran lokasi pekerjaan di Kabupaten Banjarnegara.
+   * Dilengkapi dengan penanda lingkaran dinamis berwarna merah (kritis), kuning (sedang), atau hijau (aman) sesuai dengan status progress fisik.
+   * Klik penanda (*marker*) untuk memunculkan ringkasan detail pekerjaan.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🖥️ Integrasi Dasbor Utama Desktop (Admin & Pengawas)
+Rute Akses: `http://127.0.0.1:8000/admin`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+* **Notifikasi Pengajuan Progres**: Jika login sebagai Admin PUPR atau Pengawas Lapangan melalui browser desktop, panel khusus **"Verifikasi Laporan Progres Baru"** akan otomatis muncul di bagian teratas dasbor apabila terdapat antrean verifikasi aktif yang belum diproses oleh pengawas lapangan.
+* **Aksi Cepat**: Admin dapat menolak atau menyetujui pengajuan progres lengkap dengan foto bukti fisik proyek secara langsung dari dasbor desktop.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🛠️ Langkah Instalasi Lokal
 
-## License
+Lakukan langkah-langkah berikut di terminal untuk menjalankan proyek ini secara lokal:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. **Unduh Dependensi Composer**:
+   ```bash
+   composer install
+   ```
+
+2. **Salin Environment file & Set Key**:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+3. **Inisialisasi Database, Migrasi, & Seeder**:
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+
+4. **Jalankan Server Lokal**:
+   ```bash
+   php artisan serve
+   ```
+   Akses aplikasi di browser Anda melalui alamat: `http://127.0.0.1:8000`.
