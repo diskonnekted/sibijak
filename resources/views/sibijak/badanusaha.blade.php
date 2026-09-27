@@ -18,6 +18,28 @@
   <section class="py-16">
     <div class="max-w-7xl mx-auto px-6">
       
+      @php
+        $pendingCount = $contractors->flatMap->projects->where('verification_status', 'pending')->count();
+      @endphp
+
+      @if($pendingCount > 0)
+        <div class="bg-amber-50 border border-amber-300/80 text-amber-900 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-700 flex-shrink-0">
+              <i class="ph-bold ph-hourglass-high text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-extrabold uppercase tracking-wide text-amber-900">Pengajuan Progres Menunggu Review</h3>
+              <p class="text-xs text-amber-800 mt-0.5">Terdapat <strong>{{ $pendingCount }} laporan progres pekerjaan</strong> yang sedang diampu pengawas lapangan dan menunggu proses verifikasi.</p>
+            </div>
+          </div>
+          <a href="/login" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+            <span>Review / Pengawas</span>
+            <i class="ph-bold ph-arrow-right"></i>
+          </a>
+        </div>
+      @endif
+
       @if(session('success'))
         <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded flex items-center gap-3 text-sm font-semibold mb-6">
           <i class="ph-bold ph-check-circle text-lg text-emerald-600"></i>

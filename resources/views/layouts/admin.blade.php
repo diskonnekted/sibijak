@@ -8,16 +8,17 @@
   <!-- Font and Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS & VDNA Theme -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
+            heading: ['Outfit', 'sans-serif'],
             sans: ['"Plus Jakarta Sans"', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
@@ -37,9 +38,27 @@
     }
   </script>
   
+  <style>
+    :root {
+      --vibe-background: #f8fafc;
+      --vibe-surface: #ffffff;
+      --vibe-text-main: #0f172a;
+      --vibe-text-sub: #64748b;
+      --vibe-accent-1: #0f3d24;
+      --vibe-accent-2: #16a34a;
+      --vibe-font-head: 'Outfit', sans-serif;
+      --vibe-font-main: 'Plus Jakarta Sans', sans-serif;
+      --radius-md: 12px;
+      --vibe-transition: all 0.2s ease-in-out;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: var(--vibe-font-head);
+    }
+  </style>
+
   @yield('styles')
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans antialiased flex min-h-screen">
+<body class="bg-slate-950 text-slate-900 font-sans antialiased flex min-h-screen">
 
   @php
     $allUsers = \App\Models\User::all();
@@ -47,8 +66,8 @@
     $currentRole = $currentUser ? $currentUser->role : 'admin_pupr';
   @endphp
 
-  <!-- SIDEBAR MENU -->
-  <aside class="w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800">
+  <!-- SIDEBAR MENU (Hanya Tampil pada Layar md:flex >=768px) -->
+  <aside class="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex-col justify-between border-r border-slate-800">
     <div class="space-y-8">
       <!-- Sidebar Header (Logo) -->
       <div class="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950">
@@ -79,6 +98,12 @@
           </a>
         @endif
 
+        @if($currentRole === 'admin_pupr')
+          <a href="{{ route('admin.logs') }}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm font-semibold tracking-wide {{ Route::is('admin.logs') ? 'bg-gov-900 text-white shadow-sm' : 'hover:bg-slate-800 hover:text-white' }} transition-all">
+            <i class="ph-bold ph-shield-check text-lg"></i>
+            <span>Log Aktivitas User</span>
+          </a>
+        @endif
       </nav>
     </div>
 
@@ -107,9 +132,9 @@
   </aside>
 
   <!-- MAIN AREA -->
-  <div class="flex-1 flex flex-col min-w-0">
-    <!-- TOP HEADER -->
-    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20">
+  <div class="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-slate-950 md:bg-slate-50">
+    <!-- TOP HEADER DESKTOP (Hanya Tampil pada Layar md:flex >=768px) -->
+    <header class="hidden md:flex h-16 bg-white border-b border-slate-200 px-6 items-center justify-between z-20">
       <div class="flex items-center gap-4">
         <h1 class="text-base font-extrabold text-slate-900">@yield('page_title', 'SIKAP Admin')</h1>
       </div>
@@ -130,10 +155,37 @@
     </header>
 
     <!-- CONTENT WRAPPER -->
-    <div class="p-8 flex-1 overflow-y-auto">
+    <div class="p-0 md:p-8 flex-1 overflow-y-auto">
       @yield('content')
     </div>
   </div>
+
+  <!-- FLOATING BACK TO TOP BUTTON -->
+  <button id="admBackToTopBtn" type="button" onclick="scrollAdminToTop()" class="fixed bottom-20 md:bottom-8 right-5 z-40 w-11 h-11 rounded-full bg-gov-600 hover:bg-gov-500 text-white border border-emerald-400/40 shadow-2xl flex items-center justify-center transition-all duration-300 opacity-0 pointer-events-none active:scale-95 group" title="Kembali ke atas">
+    <i class="ph-bold ph-arrow-up text-lg group-hover:-translate-y-0.5 transition-transform"></i>
+  </button>
+
+  <script>
+    const admBackToTopBtn = document.getElementById('admBackToTopBtn');
+    if (admBackToTopBtn) {
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 250) {
+          admBackToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+          admBackToTopBtn.classList.add('opacity-100');
+        } else {
+          admBackToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+          admBackToTopBtn.classList.remove('opacity-100');
+        }
+      });
+    }
+
+    function scrollAdminToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  </script>
 
   @yield('scripts')
 </body>

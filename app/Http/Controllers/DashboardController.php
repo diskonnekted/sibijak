@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Contractor;
 use App\Models\Project;
+use App\Models\ProjectLog;
 use App\Models\Training;
 use App\Models\Regulation;
 use App\Models\NewsItem;
 use App\Models\User;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
@@ -73,7 +78,7 @@ class DashboardController extends Controller
     // Public Project Detail Page with Leaflet map and visual documentation
     public function publicShowProject(Project $project)
     {
-        $project->load('contractor');
+        $project->load(['contractor', 'logs']);
         return view('sibijak.pekerjaan-detail', compact('project'));
     }
 
@@ -155,16 +160,184 @@ class DashboardController extends Controller
         return redirect()->route('pelatihan')->with('success', 'Pendaftaran Pelatihan berhasil.');
     }
 
-    // AUTH: Show Login Form
+    // Helper: Anti Brute-Force Rate Limiter Key
+    private function throttleKey(Request $request): string
+    {
+        return 'login_attempt:' . Str::lower($request->input('email')) . '|' . $request->ip();
+    }
+
+    // AUTH: Show Portal Hub Login
     public function showLogin()
     {
         if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->role === 'kontraktor') return redirect()->route('mobile.kontraktor');
+            if ($user->role === 'pemeriksa_lapangan') return redirect()->route('mobile.pengawas');
             return redirect()->route('admin.dashboard');
         }
         return view('auth.login');
     }
 
-    // AUTH: Attempt Login
+    // AUTH: Show Admin Login
+    public function showAdminLogin()
+    {
+        if (auth()->check()) {
+            return redirect()->route('admin.dashboard');
+        }
+        return view('auth.login-admin');
+    }
+
+    // AUTH: Attempt Admin Login
+    public function adminLogin(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        $key = $this->throttleKey($request);
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $seconds = RateLimiter::availableIn($key);
+            $minutes = ceil($seconds / 60);
+            ActivityLog::log('LOGIN_BLOCKED', 'Akses login Admin PUPR diblokir sementara (terlalu banyak percobaan)', null, $request);
+            return back()->withErrors([
+                'email' => "Terlalu banyak percobaan login gagal (10x). Akses diblokir sementara selama {$minutes} menit.",
+            ])->onlyInput('email');
+        }
+
+        if (auth()->attempt($credentials, $request->has('remember'))) {
+            $user = auth()->user();
+            if ($user->role !== 'admin_pupr') {
+                auth()->logout();
+                RateLimiter::hit($key, 900); // 15 mins decay
+                ActivityLog::log('LOGIN_FAILED', 'Percobaan login Admin PUPR gagal: Akun tidak memiliki peran admin_pupr', $user, $request);
+                return back()->withErrors([
+                    'email' => 'Kredensial ini tidak memiliki hak akses sebagai Admin PUPR.',
+                ])->onlyInput('email');
+            }
+
+            RateLimiter::clear($key);
+            $request->session()->regenerate();
+            ActivityLog::log('LOGIN_SUCCESS', 'Berhasil masuk ke sistem sebagai Admin PUPR', $user, $request);
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        RateLimiter::hit($key, 900);
+        ActivityLog::log('LOGIN_FAILED', 'Percobaan login Admin PUPR gagal: Kredensial tidak cocok', null, $request);
+
+        return back()->withErrors([
+            'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
+        ])->onlyInput('email');
+    }
+
+    // AUTH: Show Kontraktor Login
+    public function showKontraktorLogin()
+    {
+        if (auth()->check()) {
+            return redirect()->route('kontraktor.dashboard');
+        }
+        return view('auth.login-kontraktor');
+    }
+
+    // AUTH: Attempt Kontraktor Login
+    public function kontraktorLogin(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        $key = $this->throttleKey($request);
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $seconds = RateLimiter::availableIn($key);
+            $minutes = ceil($seconds / 60);
+            ActivityLog::log('LOGIN_BLOCKED', 'Akses login Kontraktor diblokir sementara (terlalu banyak percobaan)', null, $request);
+            return back()->withErrors([
+                'email' => "Terlalu banyak percobaan login gagal (10x). Akses diblokir sementara selama {$minutes} menit.",
+            ])->onlyInput('email');
+        }
+
+        if (auth()->attempt($credentials, $request->has('remember'))) {
+            $user = auth()->user();
+            if ($user->role !== 'kontraktor') {
+                auth()->logout();
+                RateLimiter::hit($key, 900);
+                ActivityLog::log('LOGIN_FAILED', 'Percobaan login Kontraktor gagal: Akun tidak memiliki peran kontraktor', $user, $request);
+                return back()->withErrors([
+                    'email' => 'Kredensial ini tidak memiliki hak akses sebagai Kontraktor.',
+                ])->onlyInput('email');
+            }
+
+            RateLimiter::clear($key);
+            $request->session()->regenerate();
+            ActivityLog::log('LOGIN_SUCCESS', 'Berhasil masuk ke sistem sebagai Kontraktor', $user, $request);
+            return redirect()->intended(route('kontraktor.dashboard'));
+        }
+
+        RateLimiter::hit($key, 900);
+        ActivityLog::log('LOGIN_FAILED', 'Percobaan login Kontraktor gagal: Kredensial tidak cocok', null, $request);
+
+        return back()->withErrors([
+            'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
+        ])->onlyInput('email');
+    }
+
+    // AUTH: Show Pengawas Login
+    public function showPengawasLogin()
+    {
+        if (auth()->check()) {
+            return redirect()->route('pengawas.dashboard');
+        }
+        return view('auth.login-pengawas');
+    }
+
+    // AUTH: Attempt Pengawas Login
+    public function pengawasLogin(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        $key = $this->throttleKey($request);
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $seconds = RateLimiter::availableIn($key);
+            $minutes = ceil($seconds / 60);
+            ActivityLog::log('LOGIN_BLOCKED', 'Akses login Pengawas diblokir sementara (terlalu banyak percobaan)', null, $request);
+            return back()->withErrors([
+                'email' => "Terlalu banyak percobaan login gagal (10x). Akses diblokir sementara selama {$minutes} menit.",
+            ])->onlyInput('email');
+        }
+
+        if (auth()->attempt($credentials, $request->has('remember'))) {
+            $user = auth()->user();
+            if ($user->role !== 'pemeriksa_lapangan') {
+                auth()->logout();
+                RateLimiter::hit($key, 900);
+                ActivityLog::log('LOGIN_FAILED', 'Percobaan login Pengawas gagal: Akun tidak memiliki peran pemeriksa_lapangan', $user, $request);
+                return back()->withErrors([
+                    'email' => 'Kredensial ini tidak memiliki hak akses sebagai Pengawas Lapangan.',
+                ])->onlyInput('email');
+            }
+
+            RateLimiter::clear($key);
+            $request->session()->regenerate();
+            ActivityLog::log('LOGIN_SUCCESS', 'Berhasil masuk ke sistem sebagai Pengawas Lapangan', $user, $request);
+            return redirect()->intended(route('pengawas.dashboard'));
+        }
+
+        RateLimiter::hit($key, 900);
+        ActivityLog::log('LOGIN_FAILED', 'Percobaan login Pengawas gagal: Kredensial tidak cocok', null, $request);
+
+        return back()->withErrors([
+            'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
+        ])->onlyInput('email');
+    }
+
+    // AUTH: Attempt Generic Login (Portal Hub Fallback)
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -172,18 +345,30 @@ class DashboardController extends Controller
             'password' => 'required',
         ]);
 
+        $key = $this->throttleKey($request);
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $seconds = RateLimiter::availableIn($key);
+            $minutes = ceil($seconds / 60);
+            return back()->withErrors([
+                'email' => "Terlalu banyak percobaan login gagal (10x). Akses diblokir sementara selama {$minutes} menit.",
+            ])->onlyInput('email');
+        }
+
         if (auth()->attempt($credentials, $request->has('remember'))) {
+            RateLimiter::clear($key);
             $request->session()->regenerate();
             
-            // Redirect based on role to optimized mobile layouts if applicable
             $user = auth()->user();
             if ($user->role === 'kontraktor') {
-                return redirect()->route('mobile.kontraktor');
+                return redirect()->route('kontraktor.dashboard');
             } elseif ($user->role === 'pemeriksa_lapangan') {
-                return redirect()->route('mobile.pengawas');
+                return redirect()->route('pengawas.dashboard');
             }
             return redirect()->intended(route('admin.dashboard'));
         }
+
+        RateLimiter::hit($key, 900);
 
         return back()->withErrors([
             'email' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
@@ -193,6 +378,9 @@ class DashboardController extends Controller
     // AUTH: Log Out
     public function logout(Request $request)
     {
+        if (auth()->check()) {
+            ActivityLog::log('LOGOUT', 'Pengguna keluar dari sistem', auth()->user(), $request);
+        }
         auth()->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -236,7 +424,18 @@ class DashboardController extends Controller
         // Get pending verification projects for admin dashboard alert
         $pendingVerifications = Project::where('verification_status', 'pending')->with('contractor')->get();
 
-        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications'));
+        // Get upcoming deadlines for projects currently in progress
+        $upcomingDeadlines = Project::where('status', 'Dalam Proses')
+            ->whereNotNull('tanggal_deadline')
+            ->with('contractor')
+            ->orderBy('tanggal_deadline', 'asc')
+            ->take(5)
+            ->get();
+
+        // Get recent activity logs for mobile audit tab preview
+        $activityLogs = ActivityLog::with('user')->orderBy('created_at', 'desc')->take(10)->get();
+
+        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'upcomingDeadlines', 'activityLogs'));
     }
 
     // Admin Map Monitoring Page filtered by role
@@ -337,6 +536,18 @@ class DashboardController extends Controller
         }
         
         return view('admin.analysis', compact('stats', 'highRiskProjects', 'recommendations'));
+    }
+
+    // Halaman Khusus Log Aktivitas User & Audit Trail (Admin PUPR Only)
+    public function activityLogs(Request $request)
+    {
+        $user = auth()->user();
+        if ($user && $user->role !== 'admin_pupr') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Log aktivitas hanya dapat diakses oleh Admin PUPR.');
+        }
+
+        $activityLogs = ActivityLog::with('user')->orderBy('created_at', 'desc')->paginate(25);
+        return view('admin.logs', compact('activityLogs'));
     }
 
     // Admin Contractor Detail Page - Access Restricted for other Contractors
@@ -513,12 +724,13 @@ class DashboardController extends Controller
     public function mobileContractor()
     {
         $user = auth()->user();
-        if ($user->role !== 'kontraktor') {
-            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Halaman ini khusus untuk Pelaksana/Kontraktor.');
+        if ($user->role !== 'kontraktor' && $user->role !== 'admin_pupr') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak.');
         }
 
-        $contractor = Contractor::find($user->contractor_id);
-        $projects = Project::where('contractor_id', $user->contractor_id)->get();
+        $contractorId = $user->contractor_id ?? Contractor::first()->id ?? 1;
+        $contractor = Contractor::find($contractorId);
+        $projects = Project::where('contractor_id', $contractorId)->get();
 
         return view('mobile.contractor', compact('contractor', 'projects', 'user'));
     }
@@ -527,7 +739,7 @@ class DashboardController extends Controller
     public function mobileContractorSubmitReport(Request $request, Project $project)
     {
         $user = auth()->user();
-        if ($user->role !== 'kontraktor' || $project->contractor_id !== $user->contractor_id) {
+        if (($user->role !== 'kontraktor' && $user->role !== 'admin_pupr') || ($user->role === 'kontraktor' && $project->contractor_id !== $user->contractor_id)) {
             return redirect()->back()->with('error', 'Akses ditolak.');
         }
 
@@ -538,16 +750,27 @@ class DashboardController extends Controller
 
         if ($request->hasFile('photo')) {
             $path = $request->file('photo')->store('projects', 'public');
-            $project->reported_photo = '/storage/' . $path;
+            $project->reported_photo = 'storage/' . $path;
         } else {
-            // Mock dynamic high-fidelity photo fallback
-            $project->reported_photo = 'https://picsum.photos/seed/report-' . $project->id . '-' . rand(1, 1000) . '/600/350';
+            // Default local storage image fallback if no file attached
+            $project->reported_photo = 'storage/projects/sample_default.jpg';
         }
 
         $project->reported_progress = $validated['progress'];
         $project->reported_at = now();
         $project->verification_status = 'pending';
         $project->save();
+
+        ProjectLog::create([
+            'project_id' => $project->id,
+            'user_id' => $user->id,
+            'action' => 'submission',
+            'progress' => $validated['progress'],
+            'photo' => $project->reported_photo,
+            'note' => 'Pengajuan progres fisik ' . number_format($validated['progress'], 0) . '% diajukan oleh penyedia jasa.',
+        ]);
+
+        ActivityLog::log('SUBMIT_PROGRESS', "Pengajuan progres fisik {$validated['progress']}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
 
         return redirect()->back()->with('success', 'Laporan progres berhasil diajukan dan sedang menunggu verifikasi pengawas.');
     }
@@ -556,8 +779,8 @@ class DashboardController extends Controller
     public function mobileSupervisor()
     {
         $user = auth()->user();
-        if ($user->role !== 'pemeriksa_lapangan') {
-            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Halaman ini khusus untuk Pengawas/Pemeriksa Lapangan.');
+        if ($user->role !== 'pemeriksa_lapangan' && $user->role !== 'admin_pupr') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak.');
         }
 
         $pendingProjects = Project::where('verification_status', 'pending')->with('contractor')->get();
@@ -575,6 +798,7 @@ class DashboardController extends Controller
         }
 
         $action = $request->input('action'); // approve or reject
+        $note = $request->input('verification_note');
 
         if ($action === 'approve') {
             $project->progress = $project->reported_progress;
@@ -585,13 +809,28 @@ class DashboardController extends Controller
             }
             $project->tanggal_pemeriksaan = now()->toDateString();
             $project->verification_status = 'verified';
+            $project->verification_note = $note ?: 'Progres fisik terverifikasi dan disetujui sesuai hasil pengawasan lapangan.';
+            
+            ActivityLog::log('VERIFY_APPROVE', "Verifikasi DISETUJUI progres {$project->progress}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
         } else {
             // Reject report
-            $project->verification_status = 'clean';
+            $project->verification_status = 'rejected';
+            $project->verification_note = $note ?: 'Pengajuan progres ditolak oleh pengawas lapangan.';
+
+            ActivityLog::log('VERIFY_REJECT', "Verifikasi DITOLAK progres untuk paket '{$project->nama_pekerjaan}'", $user, $request);
         }
 
         $project->save();
 
-        return redirect()->back()->with('success', 'Status progres fisik berhasil diverifikasi.');
+        ProjectLog::create([
+            'project_id' => $project->id,
+            'user_id' => $user->id,
+            'action' => $action === 'approve' ? 'approve' : 'reject',
+            'progress' => $project->progress,
+            'photo' => $project->reported_photo,
+            'note' => $project->verification_note,
+        ]);
+
+        return redirect()->back()->with('success', 'Status verifikasi progres fisik pekerjaan berhasil diperbarui.');
     }
 }

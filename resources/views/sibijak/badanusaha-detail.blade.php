@@ -91,6 +91,28 @@
       <div class="lg:col-span-8 space-y-8">
         <h2 class="text-lg font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-3">Arsip Pekerjaan & Dokumentasi Fisik</h2>
 
+        @php
+          $pendingContractorProjects = $contractor->projects->where('verification_status', 'pending');
+        @endphp
+
+        @if($pendingContractorProjects->count() > 0)
+          <div class="bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-700 flex-shrink-0">
+                <i class="ph-bold ph-hourglass-high text-xl"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-extrabold uppercase tracking-wide text-amber-900">Progres Terbaru Menunggu Review Pengawas</h3>
+                <p class="text-xs text-amber-800 mt-0.5">Terdapat <strong>{{ $pendingContractorProjects->count() }} pengajuan progres fisik</strong> dari kontraktor ini yang sedang diajukan dan dalam tahap verifikasi pengawas lapangan.</p>
+              </div>
+            </div>
+            <a href="/login" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0">
+              <span>Review Pengawas</span>
+              <i class="ph-bold ph-arrow-right"></i>
+            </a>
+          </div>
+        @endif
+
         @forelse($annualArchive as $tahun => $projects)
           <div class="space-y-4">
             <div class="flex items-center gap-3">
@@ -103,11 +125,16 @@
                 <div class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
                   <!-- Visual documentation (photo matching project ID) -->
                   <div class="relative aspect-video bg-slate-100">
-                    <img src="https://picsum.photos/seed/project-{{ $p->id }}/600/350" alt="{{ $p->nama_pekerjaan }}" class="w-full h-full object-cover">
-                    <div class="absolute top-3 right-3">
+                    <img src="{{ asset(ltrim($p->reported_photo ?: 'storage/projects/sample_jembatan.jpg', '/')) }}" alt="{{ $p->nama_pekerjaan }}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='{{ asset('storage/projects/sample_default.jpg') }}';">
+                    <div class="absolute top-3 right-3 flex flex-col gap-1 items-end">
                       <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/90 text-slate-800 shadow-sm border border-slate-200">
                         {{ $p->status }}
                       </span>
+                      @if($p->verification_status === 'pending')
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-amber-500 text-white shadow-sm border border-amber-400 animate-pulse">
+                          <i class="ph-bold ph-hourglass-high"></i> Review Pengawas
+                        </span>
+                      @endif
                     </div>
                   </div>
 
@@ -125,12 +152,23 @@
                     <!-- Progress bar -->
                     <div class="space-y-1">
                       <div class="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
-                        <span>KEMAJUAN FISIK</span>
+                        <span>KEMAJUAN FISIK TERVERIFIKASI</span>
                         <span>{{ number_format($p->progress, 0) }}%</span>
                       </div>
                       <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                         <div class="bg-gov-600 h-1.5" style="width: {{ $p->progress }}%"></div>
                       </div>
+
+                      @if($p->verification_status === 'pending')
+                        <div class="bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center justify-between text-[10px] mt-2">
+                          <span class="text-amber-800 font-semibold flex items-center gap-1">
+                            <i class="ph-bold ph-arrow-up-right text-amber-600"></i> Diajukan Baru:
+                          </span>
+                          <span class="font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded border border-amber-300">
+                            {{ number_format($p->progress, 0) }}% → {{ number_format($p->reported_progress, 0) }}%
+                          </span>
+                        </div>
+                      @endif
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex justify-between items-center text-[11px] font-bold text-slate-700">

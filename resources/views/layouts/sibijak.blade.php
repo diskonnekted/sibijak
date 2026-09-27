@@ -8,16 +8,17 @@
   <!-- Font and Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS & VDNA Theme -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
+            heading: ['Outfit', 'sans-serif'],
             sans: ['"Plus Jakarta Sans"', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
@@ -36,6 +37,24 @@
     }
   </script>
   
+  <style>
+    :root {
+      --vibe-background: #f8fafc;
+      --vibe-surface: #ffffff;
+      --vibe-text-main: #0f172a;
+      --vibe-text-sub: #64748b;
+      --vibe-accent-1: #0f3d24;
+      --vibe-accent-2: #16a34a;
+      --vibe-font-head: 'Outfit', sans-serif;
+      --vibe-font-main: 'Plus Jakarta Sans', sans-serif;
+      --radius-md: 12px;
+      --vibe-transition: all 0.2s ease-in-out;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: var(--vibe-font-head);
+    }
+  </style>
+
   @yield('styles')
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-gov-900 selection:text-white">
@@ -132,7 +151,65 @@
       <span>© 2026 Pemerintah Kabupaten Banjarnegara. Hak Cipta Dilindungi.</span>
       <span>Dikembangkan sesuai Pedoman e-Gov Kementerian Kominfo.</span>
     </div>
-  </footer>
+  <!-- PUBLIC MOBILE STICKY BOTTOM NAVIGATION BAR (Tampil pada Layar <768px) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-4 py-2 shadow-2xl">
+    <div class="flex justify-around items-center max-w-md mx-auto">
+      <a href="{{ route('portal') }}" class="flex flex-col items-center gap-1 {{ Route::is('portal') ? 'text-gov-400 font-bold' : 'text-slate-400 hover:text-white' }} transition-all">
+        <i class="ph-bold ph-house text-xl"></i>
+        <span class="text-[9px] uppercase tracking-wider">Beranda</span>
+      </a>
+      <a href="{{ route('badanusaha') }}" class="flex flex-col items-center gap-1 {{ Route::is('badanusaha') ? 'text-gov-400 font-bold' : 'text-slate-400 hover:text-white' }} transition-all">
+        <i class="ph-bold ph-buildings text-xl"></i>
+        <span class="text-[9px] uppercase tracking-wider">Kontraktor</span>
+      </a>
+      <a href="{{ route('regulasi') }}" class="flex flex-col items-center gap-1 {{ Route::is('regulasi') ? 'text-gov-400 font-bold' : 'text-slate-400 hover:text-white' }} transition-all">
+        <i class="ph-bold ph-scales text-xl"></i>
+        <span class="text-[9px] uppercase tracking-wider">Peraturan</span>
+      </a>
+      <a href="{{ route('berita') }}" class="flex flex-col items-center gap-1 {{ Route::is('berita') ? 'text-gov-400 font-bold' : 'text-slate-400 hover:text-white' }} transition-all">
+        <i class="ph-bold ph-newspaper text-xl"></i>
+        <span class="text-[9px] uppercase tracking-wider">Berita</span>
+      </a>
+      @auth
+        <a href="{{ route('admin.dashboard') }}" class="flex flex-col items-center gap-1 text-emerald-400 font-bold transition-all">
+          <i class="ph-bold ph-shield-check text-xl"></i>
+          <span class="text-[9px] uppercase tracking-wider">Dasbor</span>
+        </a>
+      @else
+        <a href="{{ route('login') }}" class="flex flex-col items-center gap-1 {{ Route::is('login*') ? 'text-gov-400 font-bold' : 'text-slate-400 hover:text-white' }} transition-all">
+          <i class="ph-bold ph-user-circle text-xl"></i>
+          <span class="text-[9px] uppercase tracking-wider">Login</span>
+        </a>
+      @endauth
+    </div>
+  </nav>
+
+  <!-- FLOATING BACK TO TOP BUTTON -->
+  <button id="backToTopBtn" type="button" onclick="scrollToTop()" class="fixed bottom-20 md:bottom-8 right-5 z-40 w-11 h-11 rounded-full bg-gov-600 hover:bg-gov-500 text-white border border-emerald-400/40 shadow-2xl flex items-center justify-center transition-all duration-300 opacity-0 pointer-events-none active:scale-95 group" title="Kembali ke atas">
+    <i class="ph-bold ph-arrow-up text-lg group-hover:-translate-y-0.5 transition-transform"></i>
+  </button>
+
+  <script>
+    const backToTopBtn = document.getElementById('backToTopBtn');
+    if (backToTopBtn) {
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 250) {
+          backToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+          backToTopBtn.classList.add('opacity-100');
+        } else {
+          backToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+          backToTopBtn.classList.remove('opacity-100');
+        }
+      });
+    }
+
+    function scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  </script>
 
   @yield('scripts')
 </body>

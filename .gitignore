@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# --- SIBIJAK project-specific ignores ---
+# Production copy with secrets/data - NEVER commit
+/sibijak2/
+# Local dev helper that generates placeholder images
+/database/create_local_sample_images.php

@@ -19,22 +19,35 @@ Route::get('/daftar', [DashboardController::class, 'daftar'])->name('daftar');
 Route::post('/daftar/badanusaha', [DashboardController::class, 'submitDaftarBadanUsaha'])->name('daftar.badanusaha');
 Route::post('/daftar/pelatihan', [DashboardController::class, 'submitDaftarPelatihan'])->name('daftar.pelatihan');
 
-// Authenticaton routes
+// Authentication routes (Hub & Dedicated)
 Route::get('/login', [DashboardController::class, 'showLogin'])->name('login');
 Route::post('/login', [DashboardController::class, 'login']);
+
+Route::get('/admin/login', [DashboardController::class, 'showAdminLogin'])->name('login.admin');
+Route::post('/admin/login', [DashboardController::class, 'adminLogin']);
+
+Route::get('/kontraktor/login', [DashboardController::class, 'showKontraktorLogin'])->name('login.kontraktor');
+Route::post('/kontraktor/login', [DashboardController::class, 'kontraktorLogin']);
+
+Route::get('/pengawas/login', [DashboardController::class, 'showPengawasLogin'])->name('login.pengawas');
+Route::post('/pengawas/login', [DashboardController::class, 'pengawasLogin']);
+
 Route::post('/logout', [DashboardController::class, 'logout'])->name('logout');
 
 // Simulated Login (For switcher inside admin panel)
 Route::get('/sim-login/{user}', function (\App\Models\User $user) {
     Auth::login($user);
+    if ($user->role === 'kontraktor') return redirect()->route('kontraktor.dashboard');
+    if ($user->role === 'pemeriksa_lapangan') return redirect()->route('pengawas.dashboard');
     return redirect()->route('admin.dashboard');
 })->name('sim-login')->middleware('auth');
 
-// Admin Dashboard protected by auth
-Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
+// Admin Dashboard protected by auth & role:admin_pupr
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])->group(function () {
     Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
     Route::get('/map', [DashboardController::class, 'adminMap'])->name('map');
     Route::get('/analisa', [DashboardController::class, 'adminAnalysis'])->name('analysis');
+    Route::get('/logs', [DashboardController::class, 'activityLogs'])->name('logs');
     Route::get('/contractors/{contractor}', [DashboardController::class, 'showContractor'])->name('contractors.show');
     
     // Contractors CRUD
@@ -48,11 +61,20 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::delete('/projects/{project}', [DashboardController::class, 'deleteProject'])->name('projects.delete');
 });
 
-// Mobile Views protected by auth
-Route::prefix('mobile')->name('mobile.')->middleware('auth')->group(function () {
-    Route::get('/kontraktor', [DashboardController::class, 'mobileContractor'])->name('kontraktor');
-    Route::post('/kontraktor/report/{project}', [DashboardController::class, 'mobileContractorSubmitReport'])->name('kontraktor.report');
-    
-    Route::get('/pengawas', [DashboardController::class, 'mobileSupervisor'])->name('pengawas');
-    Route::post('/pengawas/verify/{project}', [DashboardController::class, 'mobileSupervisorVerifyReport'])->name('pengawas.verify');
+// Portal Kontraktor (Responsive Desktop & Mobile)
+Route::prefix('kontraktor')->name('kontraktor.')->middleware(['auth', 'role:kontraktor'])->group(function () {
+    Route::get('/', [DashboardController::class, 'mobileContractor'])->name('dashboard');
+    Route::post('/report/{project}', [DashboardController::class, 'mobileContractorSubmitReport'])->name('report');
 });
+
+// Portal Pengawas (Responsive Desktop & Mobile)
+Route::prefix('pengawas')->name('pengawas.')->middleware(['auth', 'role:pemeriksa_lapangan'])->group(function () {
+    Route::get('/', [DashboardController::class, 'mobileSupervisor'])->name('dashboard');
+    Route::post('/verify/{project}', [DashboardController::class, 'mobileSupervisorVerifyReport'])->name('verify');
+});
+
+// Backward Compatibility Aliases (/mobile/* -> clean routes)
+Route::get('/mobile/kontraktor', function () { return redirect()->route('kontraktor.dashboard'); })->name('mobile.kontraktor');
+Route::post('/mobile/kontraktor/report/{project}', [DashboardController::class, 'mobileContractorSubmitReport'])->name('mobile.kontraktor.report');
+Route::get('/mobile/pengawas', function () { return redirect()->route('pengawas.dashboard'); })->name('mobile.pengawas');
+Route::post('/mobile/pengawas/verify/{project}', [DashboardController::class, 'mobileSupervisorVerifyReport'])->name('mobile.pengawas.verify');

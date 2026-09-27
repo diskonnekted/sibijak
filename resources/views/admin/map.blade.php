@@ -95,9 +95,43 @@
     // Leaflet map initialization focused on Banjarnegara
     const map = L.map('admin-map').setView([-7.39675, 109.69724], 11);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // Basemaps Esri (gratis, tanpa API key) — bisa di-switch lewat control layer
+    const streetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri &mdash; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom',
       maxZoom: 20
-    }).addTo(map);
+    });
+
+    const imageryMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri &mdash; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+      maxZoom: 20
+    });
+
+    const topoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri &mdash; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom',
+      maxZoom: 20
+    });
+
+    // Layer grup overlay untuk batas kecamatan (bisa di-toggle)
+    const subdistrictLayer = L.layerGroup().addTo(map);
+
+    // Layer grup overlay untuk titik proyek (bisa di-toggle)
+    const projectLayer = L.layerGroup().addTo(map);
+
+    const baseMaps = {
+      'Street Map': streetMap,
+      'Citra Satelit': imageryMap,
+      'Topografi': topoMap
+    };
+    const overlayMaps = {
+      'Batas Kecamatan': subdistrictLayer,
+      'Titik Proyek': projectLayer
+    };
+
+    // Basemap default: Street Map
+    streetMap.addTo(map);
+
+    // Control layer (switcher) pojok kanan atas
+    L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
 
     // Fetch and draw subdistrict geojson boundary
     fetch('/peta_kecamatan.geojson')
@@ -124,7 +158,7 @@
               });
             }
           }
-        }).addTo(map);
+        }).addTo(subdistrictLayer);
       })
       .catch(err => console.error("Gagal memuat batas GeoJSON kecamatan:", err));
 
@@ -154,7 +188,7 @@
         weight: 2.5,
         opacity: 1,
         fillOpacity: 0.95
-      }).addTo(map);
+      }).addTo(projectLayer);
 
       const formatRupiah = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 

@@ -12,4 +12,9 @@ class Project extends Model
     {
         return $this->belongsTo(Contractor::class);
     }
+
+    public function logs()
+    {
+        return $this->hasMany(ProjectLog::class)->latest();
+    }
 }

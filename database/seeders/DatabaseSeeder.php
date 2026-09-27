@@ -87,7 +87,11 @@ class DatabaseSeeder extends Seeder
             'tanggal_kontrak' => '2026-03-01',
             'tanggal_pelaksanaan' => '2026-03-10',
             'tanggal_pemeriksaan' => '2026-08-01',
-            'tanggal_deadline' => '2026-10-01'
+            'tanggal_deadline' => '2026-10-01',
+            'reported_progress' => 75.00,
+            'reported_photo' => '/storage/projects/sample_jembatan.jpg',
+            'reported_at' => now(),
+            'verification_status' => 'pending'
         ]);
 
         \App\Models\Project::create([
@@ -103,7 +107,11 @@ class DatabaseSeeder extends Seeder
             'tanggal_kontrak' => '2026-02-15',
             'tanggal_pelaksanaan' => '2026-03-01',
             'tanggal_pemeriksaan' => '2026-08-05',
-            'tanggal_deadline' => '2026-09-15'
+            'tanggal_deadline' => '2026-09-15',
+            'reported_progress' => 92.50,
+            'reported_photo' => '/storage/projects/sample_jalan.jpg',
+            'reported_at' => now(),
+            'verification_status' => 'pending'
         ]);
 
         \App\Models\Project::create([
@@ -120,6 +128,23 @@ class DatabaseSeeder extends Seeder
             'tanggal_pelaksanaan' => '2026-01-20',
             'tanggal_pemeriksaan' => '2026-06-30',
             'tanggal_deadline' => '2026-07-01'
+        ]);
+
+        \App\Models\Project::create([
+            'contractor_id' => $c2->id,
+            'nama_pekerjaan' => 'Pembangunan Gedung Perpustakaan Daerah Banjarnegara',
+            'nilai_kontrak' => 3500000000,
+            'tahun_anggaran' => 2026,
+            'status' => 'Pelaksanaan',
+            'progress' => 40.00,
+            'latitude' => -7.39750,
+            'longitude' => 109.69550,
+            'detail_lokasi' => 'Kecamatan Banjarnegara, samping Kantor Dinas Pendidikan & Kebudayaan.',
+            'tanggal_kontrak' => '2026-04-01',
+            'tanggal_pelaksanaan' => '2026-04-15',
+            'tanggal_pemeriksaan' => '2026-08-01',
+            'tanggal_deadline' => '2026-11-30',
+            'verification_status' => 'clean'
         ]);
 
         \App\Models\Project::create([
@@ -233,6 +258,30 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'role' => 'kontraktor',
             'contractor_id' => $c1->id,
+        ]);
+
+        User::factory()->create([
+            'name' => 'PT Serayu Agung Konstruksi (Pelaksana)',
+            'email' => 'serayuagung@sikap.id',
+            'password' => bcrypt('password'),
+            'role' => 'kontraktor',
+            'contractor_id' => $c2->id,
+        ]);
+
+        User::factory()->create([
+            'name' => 'CV Elektrindo Banjarnegara (Pelaksana)',
+            'email' => 'elektrindo@sikap.id',
+            'password' => bcrypt('password'),
+            'role' => 'kontraktor',
+            'contractor_id' => $c3->id,
+        ]);
+
+        User::factory()->create([
+            'name' => 'PT Gumiwang Pembangunan (Pelaksana)',
+            'email' => 'gumiwang@sikap.id',
+            'password' => bcrypt('password'),
+            'role' => 'kontraktor',
+            'contractor_id' => $c4->id,
         ]);
 
         User::factory()->create([
