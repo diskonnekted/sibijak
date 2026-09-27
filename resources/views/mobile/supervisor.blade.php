@@ -408,6 +408,11 @@
               <div class="space-y-1">
                 <span class="block text-[8px] font-bold text-gov-400 uppercase tracking-widest">{{ $p->contractor->name }}</span>
                 <h3 class="text-xs font-bold text-white leading-snug font-heading uppercase">{{ $p->nama_pekerjaan }}</h3>
+                @if($p->pengawas_id === $user->id)
+                  <span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-950/50 border border-emerald-900 rounded px-1.5 py-0.5">
+                    <i class="ph-bold ph-user-focus"></i> Ditugaskan ke Anda
+                  </span>
+                @endif
               </div>
 
               <!-- Reported details with photo -->
@@ -441,6 +446,52 @@
         </div>
       </div>
 
+      <!-- TAB 3: RIWAYAT VERIFIKASI MOBILE -->
+      <div id="m-sup-riwayat" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider font-heading">Riwayat Verifikasi Saya</h2>
+          <div class="flex gap-1.5">
+            <span class="text-[9px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900 font-bold uppercase">{{ $jumlahDisetujui }} Setujui</span>
+            <span class="text-[9px] bg-red-950 text-red-400 px-2 py-0.5 rounded border border-red-900 font-bold uppercase">{{ $jumlahDitolak }} Tolak</span>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          @forelse($riwayatVerifikasi as $log)
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded space-y-2 shadow-sm">
+              <div class="flex justify-between items-start gap-2">
+                <div class="space-y-0.5">
+                  <span class="block text-[8px] font-bold text-slate-500 uppercase tracking-widest">{{ $log->project?->contractor?->name }}</span>
+                  <h3 class="text-[11px] font-bold text-white leading-snug font-heading uppercase">{{ $log->project?->nama_pekerjaan }}</h3>
+                </div>
+                <span class="shrink-0 {{ $log->action === 'approve' ? 'bg-emerald-950/60 text-emerald-400 border-emerald-900' : 'bg-red-950/60 text-red-400 border-red-900' }} text-[8px] font-bold uppercase px-1.5 py-0.5 rounded border">
+                  {{ $log->action === 'approve' ? 'Disetujui' : 'Ditolak' }} {{ number_format($log->progress, 0) }}%
+                </span>
+              </div>
+              @if($log->photos->where('type', 'verification')->count())
+                <div class="flex flex-wrap gap-1.5">
+                  @foreach($log->photos->where('type', 'verification')->take(4) as $vPhoto)
+                    <img src="{{ asset('storage/' . ltrim($vPhoto->path, '/')) }}" alt="{{ $vPhoto->caption }}" class="w-12 h-12 object-cover rounded border border-slate-800">
+                  @endforeach
+                  @if($log->photos->where('type', 'verification')->count() > 4)
+                    <span class="w-12 h-12 rounded border border-slate-800 bg-slate-900 flex items-center justify-center text-[10px] font-bold text-slate-400">+{{ $log->photos->where('type', 'verification')->count() - 4 }}</span>
+                  @endif
+                </div>
+              @endif
+              @if($log->note)
+                <p class="text-[10px] text-slate-500 italic leading-relaxed">"{{ \Illuminate\Support\Str::limit($log->note, 120) }}"</p>
+              @endif
+              <span class="block text-[9px] text-slate-600 font-mono">{{ date('d M Y H:i', strtotime($log->created_at)) }}</span>
+            </div>
+          @empty
+            <div class="text-center py-12 text-slate-500 text-xs font-semibold">
+              <i class="ph-bold ph-clock-counter-clockwise text-3xl mb-2 block text-gov-600"></i>
+              <span>Belum ada riwayat verifikasi.</span>
+            </div>
+          @endforelse
+        </div>
+      </div>
+
       <!-- TAB 3: PETA LAPANGAN MOBILE -->
       <div id="m-sup-peta" class="hidden space-y-4">
         <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider font-heading">Peta Sebaran Paket Proyek</h2>
@@ -465,8 +516,14 @@
           <div class="space-y-2.5 text-slate-300">
             <div>
               <span class="block text-slate-500 font-bold uppercase text-[9px]">Jabatan / Wewenang</span>
-              <span class="font-bold text-white">Pengawas Lapangan Bina Marga</span>
+              <span class="font-bold text-white">Pengawas Lapangan{{ $user->bidang ? ' ' . $user->bidang : '' }}</span>
             </div>
+            @if($user->nip)
+              <div>
+                <span class="block text-slate-500 font-bold uppercase text-[9px]">NIP</span>
+                <span class="font-bold text-white font-mono">{{ $user->nip }}</span>
+              </div>
+            @endif
           </div>
         </div>
       </div>
@@ -483,6 +540,10 @@
         <button type="button" onclick="switchSupervisorTab('verifikasi')" id="btn-sup-verifikasi" class="flex flex-col items-center gap-1 text-slate-500 hover:text-white transition-all">
           <i class="ph-bold ph-check-square-offset text-xl"></i>
           <span class="text-[9px] font-bold uppercase">Verifikasi</span>
+        </button>
+        <button type="button" onclick="switchSupervisorTab('riwayat')" id="btn-sup-riwayat" class="flex flex-col items-center gap-1 text-slate-500 hover:text-white transition-all">
+          <i class="ph-bold ph-clock-counter-clockwise text-xl"></i>
+          <span class="text-[9px] font-bold uppercase">Riwayat</span>
         </button>
         <button type="button" onclick="switchSupervisorTab('peta')" id="btn-sup-peta" class="flex flex-col items-center gap-1 text-slate-500 hover:text-white transition-all">
           <i class="ph-bold ph-map-trifold text-xl"></i>
@@ -514,7 +575,7 @@
         </button>
       </div>
 
-      <form id="supReviewForm" action="" method="POST" class="space-y-4 text-xs">
+      <form id="supReviewForm" action="" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs">
         @csrf
         <input type="hidden" name="action" id="supReviewActionInput">
         
@@ -532,6 +593,14 @@
         <div class="space-y-1">
           <label for="supReviewNoteInput" class="block font-bold text-slate-300">Catatan / Alasan Hasil Inspeksi Pengawas (Lapisan 1 - jika disetujui, lanjut ke persetujuan akhir Admin PUPR)</label>
           <textarea name="note" id="supReviewNoteInput" rows="3" required placeholder="Tuliskan alasan hasil pemeriksaan lapangan secara jelas..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-gov-600 focus:outline-none leading-relaxed"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label for="supReviewPhotoInput" class="block font-bold text-slate-300">Foto Dokumentasi Lapangan (cross-check)</label>
+          <input type="file" name="foto_dokumentasi[]" id="supReviewPhotoInput" multiple accept=".jpg,.jpeg,.png,.webp,image/*"
+                 class="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-gov-600 file:text-white file:font-bold file:text-[10px] hover:file:bg-gov-500 file:cursor-pointer bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <p class="text-[10px] text-slate-500 leading-relaxed">Unggah foto hasil inspeksi di lokasi untuk cross-check dengan dokumentasi penyedia jasa (maks. 8 foto, JPG/PNG/WebP @4 MB). Foto akan tersimpan sebagai dokumentasi pemeriksaan pada timeline proyek.</p>
+          <div id="supReviewPhotoPreview" class="flex flex-wrap gap-2 pt-1"></div>
         </div>
 
         <div class="pt-2 flex gap-3">
@@ -613,6 +682,8 @@
       contractorName.innerText = contractor;
       progressText.innerText = oldProgress.toFixed(0) + '% → ' + newProgress.toFixed(0) + '%';
       noteInput.value = '';
+      document.getElementById('supReviewPhotoInput').value = '';
+      document.getElementById('supReviewPhotoPreview').innerHTML = '';
 
       if (action === 'approve') {
         badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
@@ -631,8 +702,28 @@
       document.getElementById('supReviewModal').classList.add('hidden');
     }
 
+    // Preview foto dokumentasi yang dipilih
+    document.getElementById('supReviewPhotoInput').addEventListener('change', function () {
+      const preview = document.getElementById('supReviewPhotoPreview');
+      preview.innerHTML = '';
+      const maxPhotos = 8;
+      const files = Array.from(this.files).slice(0, maxPhotos);
+
+      if (this.files.length > maxPhotos) {
+        alert('Maksimal ' + maxPhotos + ' foto. Hanya ' + maxPhotos + ' foto pertama yang akan diunggah.');
+      }
+
+      files.forEach(function (file) {
+        if (!file.type.startsWith('image/')) return;
+        const img = document.createElement('img');
+        img.className = 'w-14 h-14 object-cover rounded-lg border border-slate-800';
+        img.src = URL.createObjectURL(file);
+        preview.appendChild(img);
+      });
+    });
+
     function switchSupervisorTab(tab) {
-      ['beranda', 'verifikasi', 'peta', 'profil'].forEach(t => {
+      ['beranda', 'verifikasi', 'riwayat', 'peta', 'profil'].forEach(t => {
         const el = document.getElementById('m-sup-' + t);
         const btn = document.getElementById('btn-sup-' + t);
         if (el && btn) {

@@ -14,6 +14,7 @@ Route::get('/badanusaha/{contractor}', [DashboardController::class, 'publicShowC
 Route::get('/pekerjaan/{project}', [DashboardController::class, 'publicShowProject'])->name('pekerjaan.show');
 Route::get('/pelatihan', [DashboardController::class, 'pelatihan'])->name('pelatihan');
 Route::get('/regulasi', [DashboardController::class, 'regulasi'])->name('regulasi');
+Route::get('/regulasi/{regulation}/download', [DashboardController::class, 'downloadRegulation'])->name('regulasi.download');
 Route::get('/berita', [DashboardController::class, 'berita'])->name('berita');
 Route::get('/daftar', [DashboardController::class, 'daftar'])->name('daftar');
 
@@ -97,6 +98,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])-
     Route::post('/cms/berita', [DashboardController::class, 'storeNews'])->name('cms.berita.store');
     Route::put('/cms/berita/{news}', [DashboardController::class, 'updateNews'])->name('cms.berita.update');
     Route::delete('/cms/berita/{news}', [DashboardController::class, 'deleteNews'])->name('cms.berita.delete');
+
+    // Manajemen Pengawas Lapangan
+    Route::post('/pengawas', [DashboardController::class, 'storePengawas'])->name('pengawas.store');
+    Route::put('/pengawas/{pengawas}', [DashboardController::class, 'updatePengawas'])->name('pengawas.update');
+    Route::delete('/pengawas/{pengawas}', [DashboardController::class, 'deletePengawas'])->name('pengawas.delete');
 });
 
 // Portal Kontraktor (Responsive Desktop & Mobile)

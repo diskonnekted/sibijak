@@ -21,8 +21,9 @@
       <!-- Filter Kategori -->
       <div class="flex flex-wrap gap-3 mb-8">
         <a href="{{ route('regulasi') }}?kategori=all" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ !request('kategori') || request('kategori') == 'all' ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">Semua Kategori</a>
-        <a href="{{ route('regulasi') }}?kategori=Undang-Undang" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ request('kategori') == 'Undang-Undang' ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">Undang-Undang</a>
-        <a href="{{ route('regulasi') }}?kategori=Peraturan Pemerintah" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ request('kategori') == 'Peraturan Pemerintah' ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">Peraturan Pemerintah</a>
+        @foreach($kategoriList as $kategori)
+          <a href="{{ route('regulasi') }}?kategori={{ urlencode($kategori) }}" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ request('kategori') == $kategori ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">{{ $kategori }}</a>
+        @endforeach
       </div>
 
       <!-- Regulations List -->
@@ -41,9 +42,13 @@
             
             <div class="pt-6 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Status: Berlaku</span>
-              <a href="#" class="inline-flex items-center gap-1.5 text-gov-600 hover:text-gov-800 transition-colors uppercase font-bold tracking-wider">
-                <i class="ph ph-download"></i> Unduh PDF
-              </a>
+              @if($r->file)
+                <a href="{{ route('regulasi.download', $r) }}" class="inline-flex items-center gap-1.5 text-gov-600 hover:text-gov-800 transition-colors uppercase font-bold tracking-wider">
+                  <i class="ph ph-download"></i> Unduh PDF
+                </a>
+              @else
+                <span class="text-slate-300 uppercase font-bold tracking-wider">Belum ada berkas</span>
+              @endif
             </div>
           </div>
         @empty

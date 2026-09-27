@@ -28,3 +28,5 @@ Thumbs.db
 /sibijak2/
 # Local dev helper that generates placeholder images
 /database/create_local_sample_images.php
+# Backup / working files
+*.bak

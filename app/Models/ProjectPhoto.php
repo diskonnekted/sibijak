@@ -12,6 +12,7 @@ class ProjectPhoto extends Model
         'project_log_id',
         'path',
         'caption',
+        'type',
     ];
 
     public function project(): BelongsTo

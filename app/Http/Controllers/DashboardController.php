@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\ActivityLog;
 use App\Services\RuasJalanService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -106,14 +107,22 @@ class DashboardController extends Controller
         }
 
         $regulations = $query->orderBy('tahun', 'desc')->get();
-        return view('sibijak.regulasi', compact('regulations'));
+        $kategoriList = static::regulationCategories();
+        return view('sibijak.regulasi', compact('regulations', 'kategoriList'));
     }
 
     // SIBIJAK: Berita Page
     public function berita()
     {
-        $news = NewsItem::where('status', 'publish')->orderBy('tanggal', 'desc')->get();
-        return view('sibijak.berita', compact('news'));
+        $kategori = request('kategori');
+        $query = NewsItem::where('status', 'publish');
+        if ($kategori && $kategori !== 'all') {
+            $query->where('kategori', $kategori);
+        }
+        $news = $query->orderBy('tanggal', 'desc')->get();
+        $kategoriBerita = static::newsCategories();
+
+        return view('sibijak.berita', compact('news', 'kategoriBerita'));
     }
 
     // SIBIJAK: Pendaftaran Page
@@ -498,7 +507,80 @@ class DashboardController extends Controller
         $ruasList = RuasJalanService::all();
         $ruasStats = RuasJalanService::stats();
 
-        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'pendingFinalVerifications', 'upcomingDeadlines', 'activityLogs', 'pendingContractors', 'approvedContractors', 'ruasList', 'ruasStats', 'selectedTahun', 'availableYears'));
+        // Manajemen Pengawas Lapangan (role pemeriksa_lapangan)
+        $pengawas = User::where('role', 'pemeriksa_lapangan')->orderBy('name')->get();
+        $bidangPengawas = static::pengawasBidang();
+
+        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'pendingFinalVerifications', 'upcomingDeadlines', 'activityLogs', 'pendingContractors', 'approvedContractors', 'ruasList', 'ruasStats', 'selectedTahun', 'availableYears', 'pengawas', 'bidangPengawas'));
+    }
+
+    protected static function pengawasBidang(): array
+    {
+        return [
+            'Bina Marga',
+            'Cipta Karya',
+            'Sumber Daya Air',
+            'Perumahan & Permukiman',
+            'Jasa Konstruksi Umum',
+        ];
+    }
+
+    public function storePengawas(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'nip' => 'nullable|string|max:50',
+            'bidang' => 'nullable|string|max:100',
+            'password' => 'required|string|min:6',
+        ]);
+
+        $validated['role'] = 'pemeriksa_lapangan';
+
+        User::create($validated);
+
+        ActivityLog::log('create_pengawas', 'Menambahkan pengawas lapangan: ' . $validated['name']);
+
+        return redirect()->route('admin.dashboard')->with('success', 'Pengawas lapangan berhasil ditambahkan.');
+    }
+
+    public function updatePengawas(Request $request, User $pengawas)
+    {
+        if ($pengawas->role !== 'pemeriksa_lapangan') {
+            return redirect()->route('admin.dashboard')->with('error', 'Pengguna ini bukan pengawas lapangan.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $pengawas->id,
+            'nip' => 'nullable|string|max:50',
+            'bidang' => 'nullable|string|max:100',
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        }
+
+        $pengawas->update($validated);
+
+        ActivityLog::log('update_pengawas', 'Memperbarui data pengawas lapangan: ' . $validated['name']);
+
+        return redirect()->route('admin.dashboard')->with('success', 'Data pengawas lapangan berhasil diperbarui.');
+    }
+
+    public function deletePengawas(User $pengawas)
+    {
+        if ($pengawas->role !== 'pemeriksa_lapangan') {
+            return redirect()->route('admin.dashboard')->with('error', 'Pengguna ini bukan pengawas lapangan.');
+        }
+
+        $nama = $pengawas->name;
+        $pengawas->delete();
+
+        ActivityLog::log('delete_pengawas', 'Menghapus pengawas lapangan: ' . $nama);
+
+        return redirect()->route('admin.dashboard')->with('success', 'Pengawas lapangan berhasil dihapus.');
     }
 
     // Admin Map Monitoring Page filtered by role
@@ -767,8 +849,37 @@ class DashboardController extends Controller
         $trainings = Training::orderBy('tanggal', 'desc')->get();
         $regulations = Regulation::orderBy('tahun', 'desc')->get();
         $news = NewsItem::orderBy('tanggal', 'desc')->get();
+        $kategoriList = static::regulationCategories();
+        $kategoriBerita = static::newsCategories();
 
-        return view('admin.cms', compact('trainings', 'regulations', 'news'));
+        return view('admin.cms', compact('trainings', 'regulations', 'news', 'kategoriList', 'kategoriBerita'));
+    }
+
+    protected static function regulationCategories(): array
+    {
+        return [
+            'Undang-Undang',
+            'Peraturan Pemerintah',
+            'Peraturan Presiden',
+            'Peraturan Menteri',
+            'Peraturan Daerah',
+            'Keputusan Kepala Daerah',
+            'Standar & Pedoman Teknis',
+            'Surat Edaran',
+        ];
+    }
+
+    protected static function newsCategories(): array
+    {
+        return [
+            'Pengumuman',
+            'Lelang & Pengadaan',
+            'Berita Kegiatan',
+            'Pembangunan & Infrastruktur',
+            'Pelatihan & Sertifikasi',
+            'Sosialisasi',
+            'Lainnya',
+        ];
     }
 
     // --- Pelatihan ---
@@ -824,7 +935,12 @@ class DashboardController extends Controller
             'tahun' => 'nullable|integer|min:1900|max:2100',
             'kategori' => 'nullable|string|max:100',
             'deskripsi' => 'nullable|string',
+            'file' => 'nullable|file|mimes:pdf|max:20480',
         ]);
+
+        if ($request->hasFile('file')) {
+            $validated['file'] = $request->file('file')->store('regulasi', 'public');
+        }
 
         $regulation = Regulation::create($validated);
 
@@ -841,7 +957,15 @@ class DashboardController extends Controller
             'tahun' => 'nullable|integer|min:1900|max:2100',
             'kategori' => 'nullable|string|max:100',
             'deskripsi' => 'nullable|string',
+            'file' => 'nullable|file|mimes:pdf|max:20480',
         ]);
+
+        if ($request->hasFile('file')) {
+            if ($regulation->file) {
+                Storage::disk('public')->delete($regulation->file);
+            }
+            $validated['file'] = $request->file('file')->store('regulasi', 'public');
+        }
 
         $regulation->update($validated);
 
@@ -852,11 +976,27 @@ class DashboardController extends Controller
 
     public function deleteRegulation(Regulation $regulation)
     {
+        if ($regulation->file) {
+            Storage::disk('public')->delete($regulation->file);
+        }
+
         $regulation->delete();
 
         ActivityLog::log('delete_regulation', 'Menghapus regulasi: ' . $regulation->judul);
 
         return redirect()->route('admin.cms')->with('success', 'Regulasi berhasil dihapus.');
+    }
+
+    public function downloadRegulation(Regulation $regulation)
+    {
+        if (! $regulation->file || ! Storage::disk('public')->exists($regulation->file)) {
+            abort(404, 'Berkas regulasi tidak tersedia.');
+        }
+
+        $extension = pathinfo($regulation->file, PATHINFO_EXTENSION);
+        $filename = Str::slug($regulation->judul).'.'.$extension;
+
+        return Storage::disk('public')->download($regulation->file, $filename);
     }
 
     // --- Berita ---
@@ -867,9 +1007,13 @@ class DashboardController extends Controller
             'konten' => 'required|string',
             'tanggal' => 'required|date',
             'kategori' => 'nullable|string|max:100',
-            'cover_image' => 'nullable|string|max:255',
+            'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'status' => 'required|in:draft,publish',
         ]);
+
+        if ($request->hasFile('cover_image')) {
+            $validated['cover_image'] = $request->file('cover_image')->store('news', 'public');
+        }
 
         $news = NewsItem::create($validated);
 
@@ -885,9 +1029,16 @@ class DashboardController extends Controller
             'konten' => 'required|string',
             'tanggal' => 'required|date',
             'kategori' => 'nullable|string|max:100',
-            'cover_image' => 'nullable|string|max:255',
+            'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'status' => 'required|in:draft,publish',
         ]);
+
+        if ($request->hasFile('cover_image')) {
+            if ($news->cover_image) {
+                Storage::disk('public')->delete($news->cover_image);
+            }
+            $validated['cover_image'] = $request->file('cover_image')->store('news', 'public');
+        }
 
         $news->update($validated);
 
@@ -898,6 +1049,10 @@ class DashboardController extends Controller
 
     public function deleteNews(NewsItem $news)
     {
+        if ($news->cover_image) {
+            Storage::disk('public')->delete($news->cover_image);
+        }
+
         $news->delete();
 
         ActivityLog::log('delete_news', 'Menghapus berita: ' . $news->judul);
@@ -923,6 +1078,7 @@ class DashboardController extends Controller
             'longitude' => 'required|numeric',
             'detail_lokasi' => 'nullable|string',
             'ruas_jalan_id' => 'nullable|integer',
+            'pengawas_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'pemeriksa_lapangan')],
             'tanggal_kontrak' => 'nullable|date',
             'tanggal_pelaksanaan' => 'nullable|date',
             'tanggal_pemeriksaan' => 'nullable|date',
@@ -986,6 +1142,7 @@ class DashboardController extends Controller
             'longitude' => 'required|numeric',
             'detail_lokasi' => 'nullable|string',
             'ruas_jalan_id' => 'nullable|integer',
+            'pengawas_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'pemeriksa_lapangan')],
             'tanggal_kontrak' => 'nullable|date',
             'tanggal_pelaksanaan' => 'nullable|date',
             'tanggal_pemeriksaan' => 'nullable|date',
@@ -1129,14 +1286,32 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak.');
         }
 
+        // Scope: proyek yang ditugaskan ke pengawas ini + proyek yang belum ditugaskan
+        $assignedToMe = fn ($query) => $query->where(function ($q) use ($user) {
+            $q->where('pengawas_id', $user->id)->orWhereNull('pengawas_id');
+        });
+
         // Hanya lapisan 1: laporan yang belum diverifikasi pengawas
         $pendingProjects = Project::where('verification_status', 'pending')
             ->whereNull('pengawas_verified_at')
             ->with('contractor')
+            ->when($user->role === 'pemeriksa_lapangan', $assignedToMe)
             ->get();
-        $allProjects = Project::with('contractor')->get();
+        $allProjects = Project::with('contractor')
+            ->when($user->role === 'pemeriksa_lapangan', $assignedToMe)
+            ->get();
 
-        return view('mobile.supervisor', compact('pendingProjects', 'allProjects', 'user'));
+        // Riwayat verifikasi oleh pengawas ini (approve/reject lapisan 1)
+        $riwayatVerifikasi = ProjectLog::with('project.contractor', 'photos')
+            ->where('user_id', $user->id)
+            ->whereIn('action', ['approve', 'reject'])
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+        $jumlahDisetujui = $riwayatVerifikasi->where('action', 'approve')->count();
+        $jumlahDitolak = $riwayatVerifikasi->where('action', 'reject')->count();
+
+        return view('mobile.supervisor', compact('pendingProjects', 'allProjects', 'user', 'riwayatVerifikasi', 'jumlahDisetujui', 'jumlahDitolak'));
     }
 
     // MOBILE: Supervisor Approve/Reject Report
@@ -1147,9 +1322,20 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'Akses ditolak.');
         }
 
+        // Cek penugasan: pengawas hanya boleh memverifikasi proyek yang ditugaskan kepadanya (atau yang belum ditugaskan)
+        if ($user->role === 'pemeriksa_lapangan' && $project->pengawas_id && $project->pengawas_id !== $user->id) {
+            return redirect()->back()->with('error', 'Paket ini ditugaskan kepada pengawas lain. Anda tidak berwenang memverifikasinya.');
+        }
+
         $action = $request->input('action'); // approve or reject
         // Terima catatan dari form pengawas (name="note") maupun form admin (name="verification_note")
         $note = $request->input('verification_note') ?: $request->input('note');
+
+        // Validasi foto dokumentasi lapangan (cross-check oleh pengawas)
+        $request->validate([
+            'foto_dokumentasi' => 'nullable|array|max:8',
+            'foto_dokumentasi.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
 
         if ($action === 'approve') {
             // Lapisan 1 disetujui pengawas -> lanjut ke persetujuan final admin
@@ -1171,7 +1357,7 @@ class DashboardController extends Controller
 
         $project->save();
 
-        ProjectLog::create([
+        $log = ProjectLog::create([
             'project_id' => $project->id,
             'user_id' => $user->id,
             'action' => $action === 'approve' ? 'approve' : 'reject',
@@ -1179,6 +1365,19 @@ class DashboardController extends Controller
             'photo' => $project->reported_photo,
             'note' => $project->verification_note,
         ]);
+
+        // Simpan foto dokumentasi lapangan pengawas (cross-check)
+        if ($request->hasFile('foto_dokumentasi')) {
+            foreach ($request->file('foto_dokumentasi') as $foto) {
+                ProjectPhoto::create([
+                    'project_id' => $project->id,
+                    'project_log_id' => $log->id,
+                    'path' => $foto->store('projects', 'public'),
+                    'caption' => 'Dokumentasi pemeriksaan lapangan',
+                    'type' => 'verification',
+                ]);
+            }
+        }
 
         return redirect()->back()->with('success', 'Status verifikasi progres fisik pekerjaan berhasil diperbarui.');
     }

@@ -187,6 +187,11 @@
           <button onclick="switchTab('pekerjaan')" id="btn-tab-pekerjaan" class="py-4 text-sm font-bold border-b-2 @if($currentRole === 'kontraktor') border-gov-900 text-gov-900 @else border-transparent text-slate-500 hover:text-slate-800 @endif focus:outline-none transition-all">
             Daftar Pekerjaan / Proyek
           </button>
+          @if($currentRole === 'admin_pupr')
+            <button onclick="switchTab('pengawas')" id="btn-tab-pengawas" class="py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 focus:outline-none transition-all">
+              Pengawas Lapangan
+            </button>
+          @endif
         </div>
         
         <div class="py-3 flex gap-2">
@@ -196,6 +201,9 @@
             </button>
             <button onclick="openProjectModal()" id="btn-add-pekerjaan" class="hidden inline-flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-wider uppercase text-white bg-gov-900 hover:bg-gov-950 rounded transition-all active:scale-[0.98]">
               <i class="ph-bold ph-plus"></i> Pekerjaan Baru
+            </button>
+            <button onclick="openPengawasModal()" id="btn-add-pengawas" class="hidden inline-flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-wider uppercase text-white bg-gov-900 hover:bg-gov-950 rounded transition-all active:scale-[0.98]">
+              <i class="ph-bold ph-plus"></i> Pengawas Baru
             </button>
           @endif
         </div>
@@ -326,7 +334,14 @@
               @forelse($projects as $p)
                 <tr>
                   <td class="py-4 font-bold text-slate-900 max-w-[250px] truncate" title="{{ $p->nama_pekerjaan }}">{{ $p->nama_pekerjaan }}</td>
-                  <td class="py-4 text-xs font-medium text-slate-600">{{ $p->contractor->name }}</td>
+                  <td class="py-4 text-xs font-medium text-slate-600">
+                    <span class="block">{{ $p->contractor->name }}</span>
+                    @if($p->assignedPengawas)
+                      <span class="block text-[10px] text-gov-700 font-bold mt-0.5"><i class="ph-bold ph-user-focus"></i> {{ $p->assignedPengawas->name }}</span>
+                    @elseif($currentRole === 'admin_pupr')
+                      <span class="block text-[10px] text-slate-300 mt-0.5">Belum ditugaskan</span>
+                    @endif
+                  </td>
                   <td class="py-4 font-semibold text-slate-800">Rp {{ number_format($p->nilai_kontrak, 0, ',', '.') }}</td>
                   <td class="py-4 font-mono text-xs">{{ $p->tahun_anggaran }}</td>
                   <td class="py-4">
@@ -369,6 +384,69 @@
           </table>
         </div>
       </div>
+
+      <!-- TAB PENGAWAS CONTENT -->
+      @if($currentRole === 'admin_pupr')
+      <div id="tab-content-pengawas" class="hidden p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-extrabold text-slate-900 font-heading">Manajemen Pengawas Lapangan</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Akun pemeriksa lapangan yang memverifikasi laporan progres, melakukan cross-check dokumentasi di lapangan, dan memberi persetujuan lapisan pertama.</p>
+          </div>
+          <span class="px-3 py-1.5 rounded bg-slate-100 border border-slate-200 text-xs font-bold text-slate-600">{{ $pengawas->count() }} pengawas terdaftar</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <th class="pb-3 font-semibold">Nama Pengawas</th>
+                <th class="pb-3 font-semibold">NIP</th>
+                <th class="pb-3 font-semibold">Bidang</th>
+                <th class="pb-3 font-semibold">Email</th>
+                <th class="pb-3 font-semibold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+              @forelse($pengawas as $p)
+                <tr>
+                  <td class="py-4 font-bold text-slate-900">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded bg-gov-900 text-white flex items-center justify-center text-xs font-extrabold">{{ strtoupper(mb_substr($p->name, 0, 1)) }}</span>
+                      <span>{{ $p->name }}</span>
+                    </div>
+                  </td>
+                  <td class="py-4 font-mono text-xs">{{ $p->nip ?: '—' }}</td>
+                  <td class="py-4">
+                    @if($p->bidang)
+                      <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 uppercase">{{ $p->bidang }}</span>
+                    @else
+                      <span class="text-xs text-slate-300">—</span>
+                    @endif
+                  </td>
+                  <td class="py-4 text-slate-500">{{ $p->email }}</td>
+                  <td class="py-4 text-right space-x-2">
+                    <button onclick='openPengawasModal(@json(["id" => $p->id, "name" => $p->name, "nip" => $p->nip, "bidang" => $p->bidang, "email" => $p->email]))' class="p-1.5 text-slate-500 hover:text-gov-900 rounded hover:bg-slate-50" title="Edit">
+                      <i class="ph-bold ph-pencil-simple text-base"></i>
+                    </button>
+                    <form action="{{ route('admin.pengawas.delete', $p) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengawas ini?')">
+                      @csrf
+                      @method('DELETE')
+                      <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 rounded hover:bg-slate-50" title="Hapus">
+                        <i class="ph-bold ph-trash text-base"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="5" class="py-8 text-center text-slate-400 font-medium">Belum ada data pengawas lapangan.</td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+      @endif
     </div>
   </div>
 
@@ -977,6 +1055,70 @@
     </div>
   @endif
 
+  <!-- MODAL PENGAWAS (CREATE / EDIT) -->
+  @if($currentRole === 'admin_pupr')
+    <div id="modal-pengawas" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true" role="dialog">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" onclick="closePengawasModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white rounded text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+          <form id="form-pengawas" action="{{ route('admin.pengawas.store') }}" method="POST">
+            @csrf
+            <input type="hidden" name="_method" id="method-pengawas" value="POST">
+
+            <div class="bg-gov-900 px-6 py-4 text-white">
+              <h3 class="text-base font-bold" id="title-modal-pengawas">Tambah Pengawas Lapangan</h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nama Lengkap</label>
+                <input type="text" name="name" id="pw-name" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">NIP</label>
+                  <input type="text" name="nip" id="pw-nip" placeholder="Opsional" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Bidang Keahlian</label>
+                  <select name="bidang" id="pw-bidang" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+                    <option value="">— Pilih Bidang —</option>
+                    @foreach($bidangPengawas as $bidang)
+                      <option value="{{ $bidang }}">{{ $bidang }}</option>
+                    @endforeach
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Email</label>
+                <input type="email" name="email" id="pw-email" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password <span id="pw-password-label" class="text-slate-400 normal-case font-medium">(min. 6 karakter)</span></label>
+                <input type="password" name="password" id="pw-password" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+              </div>
+
+              <div class="bg-slate-50 border border-slate-200 rounded p-3 text-[11px] text-slate-500 leading-relaxed">
+                <i class="ph-bold ph-info text-gov-700"></i>
+                Pengawas lapangan dapat login ke portal <span class="font-bold">/pengawas</span> untuk memverifikasi laporan progres, mengunggah dokumentasi cross-check, dan memberikan persetujuan lapisan pertama sebelum persetujuan akhir admin.
+              </div>
+            </div>
+
+            <div class="bg-slate-50 px-6 py-4 flex justify-end gap-2 border-t border-slate-200">
+              <button type="button" onclick="closePengawasModal()" class="px-4 py-2 text-xs font-bold uppercase text-slate-700 border border-slate-300 bg-white rounded active:scale-[0.98]">Batal</button>
+              <button type="submit" class="px-4 py-2 text-xs font-bold uppercase text-white bg-gov-900 hover:bg-gov-950 rounded shadow active:scale-[0.98]">Simpan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  @endif
+
   <!-- MODAL PROJECT (CREATE / EDIT) -->
   <div id="modal-project" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true" role="dialog">
     <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -1004,6 +1146,15 @@
                 <select name="contractor_id" id="p-contractor" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
                   @foreach($approvedContractors as $c)
                     <option value="{{ $c->id }}">{{ $c->name }}</option>
+                  @endforeach
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pengawas Penanggung Jawab</label>
+                <select name="pengawas_id" id="p-pengawas" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+                  <option value="">— Belum Ditugaskan —</option>
+                  @foreach($pengawas as $pw)
+                    <option value="{{ $pw->id }}">{{ $pw->name }}@if($pw->bidang) &mdash; {{ $pw->bidang }}@endif</option>
                   @endforeach
                 </select>
               </div>
@@ -1111,32 +1262,42 @@
     function switchTab(tabName) {
       const cTabBtn = document.getElementById('btn-tab-kontraktor');
       const pTabBtn = document.getElementById('btn-tab-pekerjaan');
+      const pwTabBtn = document.getElementById('btn-tab-pengawas');
       const lTabBtn = document.getElementById('btn-tab-log');
 
       const cTabContent = document.getElementById('tab-content-kontraktor');
       const pTabContent = document.getElementById('tab-content-pekerjaan');
+      const pwTabContent = document.getElementById('tab-content-pengawas');
       const lTabContent = document.getElementById('tab-content-log');
 
       const cAddBtn = document.getElementById('btn-add-kontraktor');
       const pAddBtn = document.getElementById('btn-add-pekerjaan');
+      const pwAddBtn = document.getElementById('btn-add-pengawas');
 
       // Reset all buttons
       if(cTabBtn) cTabBtn.className = "py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 focus:outline-none transition-all";
       if(pTabBtn) pTabBtn.className = "py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 focus:outline-none transition-all";
+      if(pwTabBtn) pwTabBtn.className = "py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 focus:outline-none transition-all";
       if(lTabBtn) lTabBtn.className = "py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 focus:outline-none transition-all flex items-center gap-1.5";
 
       // Reset all contents
       if(cTabContent) cTabContent.classList.add('hidden');
       if(pTabContent) pTabContent.classList.add('hidden');
+      if(pwTabContent) pwTabContent.classList.add('hidden');
       if(lTabContent) lTabContent.classList.add('hidden');
 
       if(cAddBtn) cAddBtn.classList.add('hidden');
       if(pAddBtn) pAddBtn.classList.add('hidden');
+      if(pwAddBtn) pwAddBtn.classList.add('hidden');
 
       if(tabName === 'kontraktor') {
         if(cTabBtn) cTabBtn.className = "py-4 text-sm font-bold border-b-2 border-gov-900 text-gov-900 focus:outline-none transition-all";
         if(cTabContent) cTabContent.classList.remove('hidden');
         if(cAddBtn) cAddBtn.classList.remove('hidden');
+      } else if(tabName === 'pengawas') {
+        if(pwTabBtn) pwTabBtn.className = "py-4 text-sm font-bold border-b-2 border-gov-900 text-gov-900 focus:outline-none transition-all";
+        if(pwTabContent) pwTabContent.classList.remove('hidden');
+        if(pwAddBtn) pwAddBtn.classList.remove('hidden');
       } else if(tabName === 'log') {
         if(lTabBtn) lTabBtn.className = "py-4 text-sm font-bold border-b-2 border-gov-900 text-gov-900 focus:outline-none transition-all flex items-center gap-1.5";
         if(lTabContent) lTabContent.classList.remove('hidden');
@@ -1190,6 +1351,47 @@
       document.getElementById("modal-contractor").classList.add("hidden");
     }
 
+    // Modal Pengawas Control
+    function openPengawasModal(pw = null) {
+      const form = document.getElementById("form-pengawas");
+      const title = document.getElementById("title-modal-pengawas");
+      const methodInput = document.getElementById("method-pengawas");
+      const passwordLabel = document.getElementById("pw-password-label");
+      const passwordInput = document.getElementById("pw-password");
+
+      if (pw) {
+        title.textContent = "Edit Pengawas: " + pw.name;
+        form.action = `/admin/pengawas/${pw.id}`;
+        methodInput.value = "PUT";
+        passwordLabel.textContent = "(kosongkan jika tidak diganti)";
+        passwordInput.required = false;
+
+        document.getElementById("pw-name").value = pw.name;
+        document.getElementById("pw-nip").value = pw.nip || "";
+        document.getElementById("pw-bidang").value = pw.bidang || "";
+        document.getElementById("pw-email").value = pw.email;
+        passwordInput.value = "";
+      } else {
+        title.textContent = "Tambah Pengawas Lapangan";
+        form.action = "{{ route('admin.pengawas.store') }}";
+        methodInput.value = "POST";
+        passwordLabel.textContent = "(min. 6 karakter)";
+        passwordInput.required = true;
+
+        document.getElementById("pw-name").value = "";
+        document.getElementById("pw-nip").value = "";
+        document.getElementById("pw-bidang").value = "";
+        document.getElementById("pw-email").value = "";
+        passwordInput.value = "";
+      }
+
+      document.getElementById("modal-pengawas").classList.remove("hidden");
+    }
+
+    function closePengawasModal() {
+      document.getElementById("modal-pengawas").classList.add("hidden");
+    }
+
     // Modal Project Control
     let modalMap = null;
     let mapMarker = null;
@@ -1217,6 +1419,7 @@
         document.getElementById("p-lng").value = p.longitude;
         document.getElementById("p-detail").value = p.detail_lokasi || '';
         document.getElementById("p-ruas").value = p.ruas_jalan_id ? String(p.ruas_jalan_id) : '';
+        document.getElementById("p-pengawas").value = p.pengawas_id ? String(p.pengawas_id) : '';
         document.getElementById("ruas-notice").classList.add('hidden');
         document.getElementById("p-tgl-kontrak").value = p.tanggal_kontrak || '';
         document.getElementById("p-tgl-pelaksanaan").value = p.tanggal_pelaksanaan || '';
@@ -1234,6 +1437,7 @@
         document.getElementById("p-lat").value = lat;
         document.getElementById("p-lng").value = lng;
         document.getElementById("p-ruas").value = '';
+        document.getElementById("p-pengawas").value = '';
         document.getElementById("ruas-notice").classList.add('hidden');
       }
 
@@ -1258,8 +1462,9 @@
         document.getElementById("map-notice-box").style.display = 'block';
       }
 
-      // Ruas jalan hanya boleh diatur oleh Admin PUPR
+      // Ruas jalan & penugasan pengawas hanya boleh diatur oleh Admin PUPR
       document.getElementById("p-ruas").disabled = (role !== 'admin_pupr');
+      document.getElementById("p-pengawas").disabled = (role !== 'admin_pupr');
 
       document.getElementById("modal-project").classList.remove("hidden");
 

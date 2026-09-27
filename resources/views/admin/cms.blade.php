@@ -93,6 +93,7 @@
             <th class="px-4 py-3">Nomor</th>
             <th class="px-4 py-3">Tahun</th>
             <th class="px-4 py-3">Kategori</th>
+            <th class="px-4 py-3">File</th>
             <th class="px-4 py-3 text-right">Aksi</th>
           </tr>
         </thead>
@@ -103,6 +104,15 @@
             <td class="px-4 py-3 text-slate-600">{{ $r->nomor }}</td>
             <td class="px-4 py-3 text-slate-600">{{ $r->tahun }}</td>
             <td class="px-4 py-3 text-slate-600">{{ $r->kategori }}</td>
+            <td class="px-4 py-3">
+              @if($r->file)
+                <a href="{{ route('regulasi.download', $r) }}" class="inline-flex items-center gap-1 text-xs font-bold text-gov-600 hover:text-gov-800" title="Unduh PDF">
+                  <i class="ph-bold ph-file-pdf text-base text-red-500"></i> PDF
+                </a>
+              @else
+                <span class="text-xs text-slate-300">—</span>
+              @endif
+            </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
               <button onclick='openRegulasiModal(@json($r))' class="px-2.5 py-1.5 rounded text-xs font-semibold text-gov-900 hover:bg-slate-100">Edit</button>
               <form action="{{ route('admin.cms.regulasi.delete', $r) }}" method="POST" class="inline" onsubmit="return confirm('Hapus regulasi ini?')">
@@ -112,7 +122,7 @@
             </td>
           </tr>
           @empty
-          <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">Belum ada data regulasi.</td></tr>
+          <tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">Belum ada data regulasi.</td></tr>
           @endforelse
         </tbody>
       </table>
@@ -225,7 +235,7 @@
   <div class="flex items-end sm:items-center justify-center min-h-full p-4 text-center">
     <div class="fixed inset-0 bg-slate-950/60" onclick="closeRegulasiModal()"></div>
     <div class="relative inline-block align-bottom bg-white rounded-xl shadow-xl text-left overflow-hidden sm:max-w-lg w-full">
-      <form id="form-regulasi" method="POST" action="{{ route('admin.cms.regulasi.store') }}">
+      <form id="form-regulasi" method="POST" action="{{ route('admin.cms.regulasi.store') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="_method" id="regulasi-method" value="">
         <div class="bg-gov-900 px-6 py-4 flex items-center justify-between">
@@ -249,7 +259,19 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
-            <input type="text" name="kategori" id="r-kategori" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900">
+            <select name="kategori" id="r-kategori" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900">
+              <option value="">— Pilih Kategori —</option>
+              @foreach($kategoriList as $kategori)
+                <option value="{{ $kategori }}">{{ $kategori }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">File PDF Regulasi</label>
+            <input type="file" name="file" id="r-file" accept=".pdf,application/pdf"
+                   class="w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-gov-900 file:text-white file:font-bold hover:file:bg-gov-700 text-slate-500">
+            <p class="text-[11px] text-slate-400 mt-1">PDF max 20 MB. Dapat diunduh oleh kontraktor &amp; masyarakat umum.</p>
+            <p id="r-file-hint" class="text-[11px] text-gov-600 font-semibold mt-1"></p>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Deskripsi (opsional)</label>
@@ -270,7 +292,7 @@
   <div class="flex items-end sm:items-center justify-center min-h-full p-4 text-center">
     <div class="fixed inset-0 bg-slate-950/60" onclick="closeBeritaModal()"></div>
     <div class="relative inline-block align-bottom bg-white rounded-xl shadow-xl text-left overflow-hidden sm:max-w-lg w-full">
-      <form id="form-berita" method="POST" action="{{ route('admin.cms.berita.store') }}">
+      <form id="form-berita" method="POST" action="{{ route('admin.cms.berita.store') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="_method" id="berita-method" value="">
         <div class="bg-gov-900 px-6 py-4 flex items-center justify-between">
@@ -289,13 +311,21 @@
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
-              <input type="text" name="kategori" id="b-kategori" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900">
+              <select name="kategori" id="b-kategori" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900">
+                <option value="">— Pilih Kategori —</option>
+                @foreach($kategoriBerita as $kategori)
+                  <option value="{{ $kategori }}">{{ $kategori }}</option>
+                @endforeach
+              </select>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cover Image URL (opsional)</label>
-              <input type="text" name="cover_image" id="b-cover" placeholder="/storage/news/example.jpg" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900">
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Foto Cover (opsional)</label>
+              <input type="file" name="cover_image" id="b-cover" accept=".jpg,.jpeg,.png,.webp,image/*"
+                     class="w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-gov-900 file:text-white file:font-bold hover:file:bg-gov-700 text-slate-500">
+              <p class="text-[11px] text-slate-400 mt-1">JPG/PNG/WebP, maks 2 MB.</p>
+              <p id="b-cover-hint" class="text-[11px] text-gov-600 font-semibold mt-1"></p>
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
@@ -346,6 +376,10 @@ function openRegulasiModal(data = null) {
   document.getElementById('r-tahun').value = isEdit ? (data.tahun || '') : '';
   document.getElementById('r-kategori').value = isEdit ? (data.kategori || '') : '';
   document.getElementById('r-deskripsi').value = isEdit ? (data.deskripsi || '') : '';
+  document.getElementById('r-file').value = '';
+  document.getElementById('r-file-hint').textContent = (isEdit && data.file)
+    ? ('File terpasang: ' + data.file.split('/').pop() + ' — unggah PDF baru untuk menggantinya')
+    : '';
   document.getElementById('regulasi-method').value = isEdit ? 'PUT' : '';
   document.getElementById('form-regulasi').action = isEdit
     ? "{{ url('admin/cms/regulasi') }}/" + data.id
@@ -360,7 +394,10 @@ function openBeritaModal(data = null) {
   document.getElementById('b-judul').value = isEdit ? data.judul : '';
   document.getElementById('b-tanggal').value = isEdit ? data.tanggal : '';
   document.getElementById('b-kategori').value = isEdit ? (data.kategori || '') : '';
-  document.getElementById('b-cover').value = isEdit ? (data.cover_image || '') : '';
+  document.getElementById('b-cover').value = '';
+  document.getElementById('b-cover-hint').textContent = (isEdit && data.cover_image)
+    ? ('Foto terpasang: ' + data.cover_image.split('/').pop() + ' — unggah foto baru untuk menggantinya')
+    : '';
   document.getElementById('b-status').value = isEdit ? data.status : 'draft';
   document.getElementById('b-konten').value = isEdit ? (data.konten || '') : '';
   document.getElementById('berita-method').value = isEdit ? 'PUT' : '';

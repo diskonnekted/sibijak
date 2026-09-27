@@ -74,7 +74,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Seed Projects
-        \App\Models\Project::create([
+        $jembatan = \App\Models\Project::create([
             'contractor_id' => $c1->id,
             'nama_pekerjaan' => 'Pembangunan Jembatan Sungai Serayu (Pacing)',
             'nilai_kontrak' => 4500000000,
@@ -89,12 +89,12 @@ class DatabaseSeeder extends Seeder
             'tanggal_pemeriksaan' => '2026-08-01',
             'tanggal_deadline' => '2026-10-01',
             'reported_progress' => 75.00,
-            'reported_photo' => '/storage/projects/sample_jembatan.jpg',
+            'reported_photo' => '/storage/projects/jembatan-tahap4-02.jpeg',
             'reported_at' => now(),
             'verification_status' => 'pending'
         ]);
 
-        \App\Models\Project::create([
+        $jalan = \App\Models\Project::create([
             'contractor_id' => $c1->id,
             'nama_pekerjaan' => 'Rehabilitasi Jalan Diponegoro (Kota Banjarnegara)',
             'nilai_kontrak' => 1800000000,
@@ -109,7 +109,7 @@ class DatabaseSeeder extends Seeder
             'tanggal_pemeriksaan' => '2026-08-05',
             'tanggal_deadline' => '2026-09-15',
             'reported_progress' => 92.50,
-            'reported_photo' => '/storage/projects/sample_jalan.jpg',
+            'reported_photo' => '/storage/projects/jalan-tahap4-05.jpeg',
             'reported_at' => now(),
             'verification_status' => 'pending'
         ]);
@@ -130,7 +130,7 @@ class DatabaseSeeder extends Seeder
             'tanggal_deadline' => '2026-07-01'
         ]);
 
-        \App\Models\Project::create([
+        $gedung = \App\Models\Project::create([
             'contractor_id' => $c2->id,
             'nama_pekerjaan' => 'Pembangunan Gedung Perpustakaan Daerah Banjarnegara',
             'nilai_kontrak' => 3500000000,
@@ -144,6 +144,7 @@ class DatabaseSeeder extends Seeder
             'tanggal_pelaksanaan' => '2026-04-15',
             'tanggal_pemeriksaan' => '2026-08-01',
             'tanggal_deadline' => '2026-11-30',
+            'reported_photo' => '/storage/projects/gedung-tahap3-04.jpeg',
             'verification_status' => 'clean'
         ]);
 
@@ -179,7 +180,7 @@ class DatabaseSeeder extends Seeder
             'tanggal_deadline' => '2026-11-15'
         ]);
 
-        \App\Models\Project::create([
+        $irigasi = \App\Models\Project::create([
             'contractor_id' => $c4->id,
             'nama_pekerjaan' => 'Peningkatan Saluran Irigasi Wanadadi',
             'nilai_kontrak' => 3100000000,
@@ -192,7 +193,8 @@ class DatabaseSeeder extends Seeder
             'tanggal_kontrak' => '2026-07-01',
             'tanggal_pelaksanaan' => '2026-07-15',
             'tanggal_pemeriksaan' => '2026-08-05',
-            'tanggal_deadline' => '2026-12-15'
+            'tanggal_deadline' => '2026-12-15',
+            'reported_photo' => '/storage/projects/air-tahap1-03.jpeg'
         ]);
 
         // Seed Trainings
@@ -290,5 +292,64 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'role' => 'pemeriksa_lapangan',
         ]);
+
+        // Seed Project Logs & Galeri Foto (tahap yang sudah berjalan)
+        $kontraktor1 = \App\Models\User::where('email', 'kontraktor@sikap.id')->first();
+        $kontraktor2 = \App\Models\User::where('email', 'serayuagung@sikap.id')->first();
+        $kontraktor4 = \App\Models\User::where('email', 'gumiwang@sikap.id')->first();
+        $pemeriksa = \App\Models\User::where('email', 'pemeriksa@sikap.id')->first();
+        $admin = \App\Models\User::where('email', 'admin@pupr.banjarnegara.go.id')->first();
+
+        $attachPhotos = function ($project, array $tahaps, $progress, $user, $withHistory) use ($pemeriksa, $admin) {
+            $log = \App\Models\ProjectLog::create([
+                'project_id' => $project->id,
+                'user_id' => $user->id,
+                'action' => 'submission',
+                'progress' => $progress,
+                'photo' => null,
+                'note' => 'Pengajuan progres fisik '.number_format($progress, 0).'% diajukan oleh penyedia jasa.',
+            ]);
+
+            $first = true;
+            foreach ($tahaps as $tahap => $count) {
+                for ($n = 1; $n <= $count; $n++) {
+                    $path = 'storage/projects/'.$tahap.'-'.str_pad($n, 2, '0', STR_PAD_LEFT).'.jpeg';
+                    \App\Models\ProjectPhoto::create([
+                        'project_id' => $project->id,
+                        'project_log_id' => $log->id,
+                        'path' => $path,
+                        'caption' => 'Foto progres '.$tahap,
+                    ]);
+                    if ($first) {
+                        $log->update(['photo' => $path]);
+                        $first = false;
+                    }
+                }
+            }
+
+            if ($withHistory) {
+                \App\Models\ProjectLog::create([
+                    'project_id' => $project->id,
+                    'user_id' => $pemeriksa->id,
+                    'action' => 'approve',
+                    'progress' => $progress,
+                    'photo' => null,
+                    'note' => 'Inspeksi pengawas lapangan disetujui. Dokumentasi merupakan data yang valid.',
+                ]);
+                \App\Models\ProjectLog::create([
+                    'project_id' => $project->id,
+                    'user_id' => $admin->id,
+                    'action' => 'final_approve',
+                    'progress' => $progress,
+                    'photo' => null,
+                    'note' => 'Persetujuan akhir diberikan; progres tercatat resmi.',
+                ]);
+            }
+        };
+
+        $attachPhotos($jembatan, ['jembatan-tahap1' => 2, 'jembatan-tahap2' => 2, 'jembatan-tahap3' => 3, 'jembatan-tahap4' => 2], 75.00, $kontraktor1, false);
+        $attachPhotos($jalan, ['jalan-tahap1' => 3, 'jalan-tahap2' => 6, 'jalan-tahap3' => 8, 'jalan-tahap4' => 5], 92.50, $kontraktor1, false);
+        $attachPhotos($gedung, ['gedung-tahap1' => 3, 'gedung-tahap2' => 4, 'gedung-tahap3' => 4], 40.00, $kontraktor2, true);
+        $attachPhotos($irigasi, ['air-tahap1' => 3], 10.00, $kontraktor4, false);
     }
 }

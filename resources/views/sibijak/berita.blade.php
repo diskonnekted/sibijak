@@ -16,9 +16,20 @@
 
   <!-- CONTENT -->
   <section class="py-16">
-    <div class="max-w-4xl mx-auto px-6 space-y-12">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="flex flex-wrap gap-3 mb-10">
+        <a href="{{ route('berita') }}" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ !request('kategori') || request('kategori') == 'all' ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">Semua Kategori</a>
+        @foreach($kategoriBerita as $kategori)
+          <a href="{{ route('berita') }}?kategori={{ urlencode($kategori) }}" class="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider {{ request('kategori') == $kategori ? 'bg-gov-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }} transition-all">{{ $kategori }}</a>
+        @endforeach
+      </div>
+
+      <div class="space-y-12">
       @forelse($news as $n)
         <article class="bg-white p-8 rounded border border-slate-200 shadow-sm space-y-4">
+          @if($n->cover_image)
+            <img src="{{ str_starts_with($n->cover_image, 'http') ? $n->cover_image : asset('storage/' . ltrim($n->cover_image, '/')) }}" alt="{{ $n->judul }}" class="w-full h-56 object-cover rounded-lg border border-slate-200">
+          @endif
           <div class="flex items-center justify-between text-xs text-slate-400 font-bold uppercase tracking-wider">
             <span>{{ $n->kategori }}</span>
             <span>{{ date('d F Y', strtotime($n->tanggal)) }}</span>
@@ -37,6 +48,7 @@
           <span class="text-sm font-semibold text-slate-400 uppercase tracking-wider block">Belum ada berita diterbitkan.</span>
         </div>
       @endforelse
+      </div>
     </div>
   </section>
 @endsection

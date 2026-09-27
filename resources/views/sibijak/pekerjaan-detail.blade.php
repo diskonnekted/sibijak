@@ -77,6 +77,9 @@
                     <img src="{{ asset(ltrim($gp->path ?: 'storage/projects/sample_default.jpg', '/')) }}" alt="{{ $gp->caption ?: 'Foto Progres' }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.src='{{ asset('storage/projects/sample_default.jpg') }}';">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end justify-between">
                       <span class="text-[9px] font-bold text-white uppercase tracking-wider">{{ $gp->caption ?: 'Foto Progres' }}</span>
+                      @if($gp->type === 'verification')
+                        <span class="text-[8px] font-extrabold text-emerald-300 uppercase tracking-wider bg-emerald-900/70 border border-emerald-500/40 rounded px-1 py-0.5">Pemeriksaan</span>
+                      @endif
                       @if($loop->first)
                         <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                           <i class="ph-fill ph-check-circle"></i> Terkini
@@ -299,6 +302,20 @@
                         </span>
                       </div>
                       <p class="text-xs text-slate-700 leading-relaxed italic">"{{ $log->note }}"</p>
+                      @if($log->photos->where('type', 'verification')->count())
+                        <div class="pt-1.5 space-y-1">
+                          <span class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                            <i class="ph-bold ph-camera"></i> Dokumentasi Pemeriksaan Lapangan ({{ $log->photos->where('type', 'verification')->count() }} foto)
+                          </span>
+                          <div class="flex flex-wrap gap-2">
+                            @foreach($log->photos->where('type', 'verification') as $vPhoto)
+                              <a href="{{ asset('storage/' . ltrim($vPhoto->path, '/')) }}" target="_blank" class="group relative block">
+                                <img src="{{ asset('storage/' . ltrim($vPhoto->path, '/')) }}" alt="{{ $vPhoto->caption }}" class="w-16 h-16 object-cover rounded-lg border border-slate-300 group-hover:border-gov-600 transition-all">
+                              </a>
+                            @endforeach
+                          </div>
+                        </div>
+                      @endif
                       <span class="block text-[10px] text-slate-400 font-mono">
                         Waktu: {{ date('d M Y H:i', strtotime($log->created_at)) }} &bull; Oleh {{ $log->action === 'submission' ? 'Penyedia Jasa' : (in_array($log->action, ['approve', 'reject']) ? 'Pengawas Lapangan PUPR' : 'Admin PUPR') }}
                       </span>
