@@ -121,9 +121,17 @@
             <div class="w-8 h-8 rounded bg-gov-50 border border-gov-100 flex items-center justify-center text-gov-800">
               <i class="ph-bold ph-lightbulb text-lg"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Rekomendasi Tindakan Strategis</h2>
               <span class="text-[10px] text-slate-400 font-semibold uppercase">Hasil Evaluasi Audit Sistem</span>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+              <a href="{{ route('admin.dashboard', ['tab' => 'kontraktor']) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-gov-50 hover:text-gov-800 hover:border-gov-200 transition-all">
+                <i class="ph-bold ph-buildings text-sm"></i> Rekanan
+              </a>
+              <a href="{{ route('admin.dashboard', ['tab' => 'pekerjaan']) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-gov-50 hover:text-gov-800 hover:border-gov-200 transition-all">
+                <i class="ph-bold ph-hard-hat text-sm"></i> Pekerjaan
+              </a>
             </div>
           </div>
 
@@ -172,9 +180,14 @@
             <div class="w-8 h-8 rounded bg-red-50 border border-red-100 flex items-center justify-center text-red-800">
               <i class="ph-bold ph-clock-countdown text-lg"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Deteksi Risiko Keterlambatan</h2>
               <span class="text-[10px] text-red-500 font-bold uppercase">Proyek Belum Selesai</span>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+              <a href="{{ route('admin.dashboard', ['tab' => 'pengawas']) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-50 hover:border-red-300 transition-all">
+                <i class="ph-bold ph-clipboard-text text-sm"></i> Pengawas
+              </a>
             </div>
           </div>
 
