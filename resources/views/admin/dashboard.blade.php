@@ -425,7 +425,7 @@
                   </td>
                   <td class="py-4 text-slate-500">{{ $p->email }}</td>
                   <td class="py-4 text-right space-x-2">
-                    <button onclick='openPengawasModal(@json(["id" => $p->id, "name" => $p->name, "nip" => $p->nip, "bidang" => $p->bidang, "email" => $p->email]))' class="p-1.5 text-slate-500 hover:text-gov-900 rounded hover:bg-slate-50" title="Edit">
+                    <button onclick="openPengawasModal({{ json_encode(['id' => $p->id, 'name' => $p->name, 'nip' => $p->nip, 'bidang' => $p->bidang, 'email' => $p->email]) }})" class="p-1.5 text-slate-500 hover:text-gov-900 rounded hover:bg-slate-50" title="Edit">
                       <i class="ph-bold ph-pencil-simple text-base"></i>
                     </button>
                     <form action="{{ route('admin.pengawas.delete', $p) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengawas ini?')">
