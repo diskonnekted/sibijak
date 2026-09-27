@@ -66,34 +66,32 @@
               </span>
             </div>
 
-            <!-- Thumbnail Gallery List -->
-            <div class="grid grid-cols-3 gap-3 pt-1">
-              <!-- Photo 1: Initial stage -->
-              <div onclick="changeMainPhoto('{{ asset('storage/projects/sample_default.jpg') }}', 'Tahap 1: Persiapan & Pembersihan Lahan (0% - 25%)')" class="cursor-pointer group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-gov-600 transition-all shadow-sm">
-                <img src="{{ asset('storage/projects/sample_default.jpg') }}" alt="Tahap 1" class="w-full h-full object-cover group-hover:scale-105 transition-transform">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end">
-                  <span class="text-[9px] font-bold text-white uppercase tracking-wider">Tahap 1 (Awal)</span>
-                </div>
+            <!-- Thumbnail Gallery List (Dinamis: Foto Lapangan Terunggah) -->
+            @php
+              $galleryPhotos = $project->photos->sortByDesc('id')->values()->take(9);
+            @endphp
+            @if($galleryPhotos->count() > 0)
+              <div class="grid grid-cols-3 gap-3 pt-1">
+                @foreach($galleryPhotos as $gp)
+                  <div onclick="changeMainPhoto('{{ asset(ltrim($gp->path ?: 'storage/projects/sample_default.jpg', '/')) }}', '{{ $gp->caption ?: 'Dokumentasi Lapangan' }} ({{ date('d M Y', strtotime($gp->created_at)) }})')" class="cursor-pointer group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 {{ $loop->first ? 'border-gov-600' : 'border-transparent hover:border-gov-600' }} transition-all shadow-sm">
+                    <img src="{{ asset(ltrim($gp->path ?: 'storage/projects/sample_default.jpg', '/')) }}" alt="{{ $gp->caption ?: 'Foto Progres' }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.src='{{ asset('storage/projects/sample_default.jpg') }}';">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end justify-between">
+                      <span class="text-[9px] font-bold text-white uppercase tracking-wider">{{ $gp->caption ?: 'Foto Progres' }}</span>
+                      @if($loop->first)
+                        <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                          <i class="ph-fill ph-check-circle"></i> Terkini
+                        </span>
+                      @endif
+                    </div>
+                  </div>
+                @endforeach
               </div>
-
-              <!-- Photo 2: Intermediate stage -->
-              <div onclick="changeMainPhoto('{{ asset('storage/projects/sample_jembatan.jpg') }}', 'Tahap 2: Konstruksi Fisik Utama (40% - 65%)')" class="cursor-pointer group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-gov-600 transition-all shadow-sm">
-                <img src="{{ asset('storage/projects/sample_jembatan.jpg') }}" alt="Tahap 2" class="w-full h-full object-cover group-hover:scale-105 transition-transform">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end">
-                  <span class="text-[9px] font-bold text-white uppercase tracking-wider">Tahap 2 (Struktur)</span>
-                </div>
+            @else
+              <div class="pt-1 text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
+                <i class="ph-bold ph-images text-slate-300 text-2xl"></i>
+                <p class="text-[10px] text-slate-400 font-semibold mt-1">Belum ada dokumentasi foto lapangan terunggah untuk paket ini.</p>
               </div>
-
-              <!-- Photo 3: Latest reported photo stage -->
-              <div onclick="changeMainPhoto('{{ asset(ltrim($project->reported_photo ?: 'storage/projects/sample_jalan.jpg', '/')) }}', 'Tahap 3: Progres Fisik Terbaru ({{ number_format($project->progress, 0) }}%)')" class="cursor-pointer group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-gov-600 transition-all shadow-sm">
-                <img src="{{ asset(ltrim($project->reported_photo ?: 'storage/projects/sample_jalan.jpg', '/')) }}" alt="Tahap 3" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.src='{{ asset('storage/projects/sample_default.jpg') }}';">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end justify-between">
-                  <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                    <i class="ph-fill ph-check-circle"></i> Terkini {{ number_format($project->progress, 0) }}%
-                  </span>
-                </div>
-              </div>
-            </div>
+            @endif
           </div>
         </div>
 
@@ -201,19 +199,44 @@
               </div>
             @endif
 
+            <!-- Catatan Persetujuan Akhir Admin (Lapisan Final) -->
+            @if($project->final_verification_note)
+              <div class="mt-4 p-4 rounded-xl space-y-2 border {{ $project->verification_status === 'verified' ? 'bg-emerald-50/90 border-emerald-200/90' : 'bg-red-50/90 border-red-200/90' }}">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 {{ $project->verification_status === 'verified' ? 'text-emerald-950' : 'text-red-950' }}">
+                    @if($project->verification_status === 'verified')
+                      <i class="ph-bold ph-seal-check text-emerald-600 text-base"></i> Persetujuan Akhir Admin PUPR
+                    @else
+                      <i class="ph-bold ph-x-circle text-red-600 text-base"></i> Persetujuan Akhir Admin PUPR (Ditolak)
+                    @endif
+                  </span>
+                  <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border {{ $project->verification_status === 'verified' ? 'text-emerald-800 bg-emerald-100/90 border-emerald-300' : 'text-red-800 bg-red-100/90 border-red-300' }}">
+                    {{ $project->final_verified_at ? date('d M Y H:i', strtotime($project->final_verified_at)) : date('d M Y') }}
+                  </span>
+                </div>
+                <p class="text-xs font-medium leading-relaxed italic pl-6 border-l-2 {{ $project->verification_status === 'verified' ? 'text-emerald-950 border-emerald-400' : 'text-red-950 border-red-500' }}">
+                  "{{ $project->final_verification_note }}"
+                </p>
+                <div class="text-[10px] font-semibold pt-1 flex items-center gap-1 {{ $project->verification_status === 'verified' ? 'text-emerald-700' : 'text-red-700' }}">
+                  <i class="ph-bold ph-shield-check {{ $project->verification_status === 'verified' ? 'text-emerald-600' : 'text-red-600' }}"></i>
+                  Diberikan oleh Admin PUPR Dinas Pekerjaan Umum dan Penataan Ruang Kabupaten Banjarnegara
+                </div>
+              </div>
+            @endif
+
             <!-- Pengajuan Menunggu Review Alert -->
             @if($project->verification_status === 'pending')
               <div class="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] font-extrabold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="ph-bold ph-hourglass-high text-amber-600 text-base"></i> Pengajuan Progres Fisik Baru Menunggu Verifikasi
+                    <i class="ph-bold ph-hourglass-high text-amber-600 text-base"></i> {{ $project->pengawas_verified_at ? 'Menunggu Persetujuan Akhir Admin PUPR (Lapisan 2)' : 'Pengajuan Progres Baru Menunggu Verifikasi Pengawas (Lapisan 1)' }}
                   </span>
                   <span class="text-[10px] font-mono font-bold text-amber-900 bg-amber-200 px-2.5 py-0.5 rounded-full border border-amber-300 animate-pulse">
                     Usulan: {{ number_format($project->reported_progress, 0) }}%
                   </span>
                 </div>
                 <p class="text-xs text-amber-900 leading-relaxed">
-                  Kontraktor telah mengajukan pembaharuan progres fisik dari <strong>{{ number_format($project->progress, 0) }}% → {{ number_format($project->reported_progress, 0) }}%</strong> dan saat ini dalam tahap audit inspeksi oleh pengawas.
+                  Kontraktor telah mengajukan pembaharuan progres fisik dari <strong>{{ number_format($project->progress, 0) }}% → {{ number_format($project->reported_progress, 0) }}%</strong> dan saat ini {{ $project->pengawas_verified_at ? 'sudah DIVERIFIKASI pengawas lapangan dan menunggu PERSETUJUAN AKHIR Admin PUPR (lapisan 2).' : 'dalam tahap audit inspeksi oleh pengawas lapangan (lapisan 1).' }}
                 </p>
               </div>
             @endif
@@ -231,39 +254,45 @@
                 
                 @forelse($project->logs as $log)
                   @php
-                    $isLogReject = $log->action === 'reject';
+                    $isLogReject = in_array($log->action, ['reject', 'final_reject']);
+                    $isLogFinalReject = $log->action === 'final_reject';
                     $isLogApprove = $log->action === 'approve';
+                    $isLogFinalApprove = $log->action === 'final_approve';
                     $isLogSubmission = $log->action === 'submission';
                   @endphp
                   <div class="relative">
                     <div class="absolute -left-6 top-1 w-4 h-4 rounded-full border-2 border-white {{
                       $isLogReject ? 'bg-red-500 shadow-sm shadow-red-500/50' : (
-                        $isLogApprove ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500 shadow-sm'
+                        ($isLogApprove || $isLogFinalApprove) ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500 shadow-sm'
                       )
                     }}"></div>
                     <div class="p-3.5 rounded-xl border {{
                       $isLogReject ? 'bg-red-50/60 border-red-200' : (
-                        $isLogApprove ? 'bg-emerald-50/60 border-emerald-200' : 'bg-amber-50/60 border-amber-200'
+                        ($isLogApprove || $isLogFinalApprove) ? 'bg-emerald-50/60 border-emerald-200' : 'bg-amber-50/60 border-amber-200'
                       )
                     }} space-y-1">
                       <div class="flex items-center justify-between gap-2">
                         <span class="text-xs font-bold {{
                           $isLogReject ? 'text-red-900' : (
-                            $isLogApprove ? 'text-emerald-900' : 'text-amber-900'
+                            ($isLogApprove || $isLogFinalApprove) ? 'text-emerald-900' : 'text-amber-900'
                           )
                         }}">
-                          {{ $isLogReject ? 'Inspeksi Pengawas (Ditolak)' : ($isLogApprove ? 'Inspeksi Pengawas (Disetujui)' : 'Pengajuan Progres Kontraktor') }} 
+                          {{ $isLogFinalReject ? 'Persetujuan Akhir Admin (Ditolak)' : ($isLogFinalApprove ? 'Persetujuan Akhir Admin (Disetujui)' : ($isLogReject ? 'Inspeksi Pengawas (Ditolak)' : ($isLogApprove ? 'Verifikasi Pengawas (Disetujui)' : 'Pengajuan Progres Kontraktor'))) }} 
                           &bull; Capaian {{ number_format($log->progress, 0) }}%
                         </span>
                         <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase {{
                           $isLogReject ? 'bg-red-100 text-red-700 border border-red-300' : (
-                            $isLogApprove ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            ($isLogApprove || $isLogFinalApprove) ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
                           )
                         }}">
-                          @if($isLogReject)
+                          @if($isLogFinalApprove)
+                            <i class="ph-bold ph-seal-check text-emerald-600"></i> Disetujui Final
+                          @elseif($isLogFinalReject)
+                            <i class="ph-bold ph-x-circle text-red-600"></i> Ditolak Final
+                          @elseif($isLogReject)
                             <i class="ph-bold ph-x-circle text-red-600"></i> Ditolak
                           @elseif($isLogApprove)
-                            <i class="ph-bold ph-check-circle text-emerald-600"></i> Disetujui
+                            <i class="ph-bold ph-check-circle text-emerald-600"></i> Disetujui Pengawas
                           @else
                             <i class="ph-bold ph-paper-plane-tilt text-amber-600"></i> Diajukan
                           @endif
@@ -271,7 +300,7 @@
                       </div>
                       <p class="text-xs text-slate-700 leading-relaxed italic">"{{ $log->note }}"</p>
                       <span class="block text-[10px] text-slate-400 font-mono">
-                        Waktu: {{ date('d M Y H:i', strtotime($log->created_at)) }} &bull; Oleh {{ $log->action === 'submission' ? 'Penyedia Jasa' : 'Pengawas Lapangan PUPR' }}
+                        Waktu: {{ date('d M Y H:i', strtotime($log->created_at)) }} &bull; Oleh {{ $log->action === 'submission' ? 'Penyedia Jasa' : (in_array($log->action, ['approve', 'reject']) ? 'Pengawas Lapangan PUPR' : 'Admin PUPR') }}
                       </span>
                     </div>
                   </div>
@@ -337,6 +366,15 @@
           <div class="font-mono text-[10px] text-slate-500 text-center">
             Koordinat: {{ $project->latitude }}, {{ $project->longitude }}
           </div>
+          @if($project->ruas_jalan_id)
+          <div class="mt-2 flex items-center gap-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+            <i class="ph-bold ph-road-horizon text-lg text-gov-600"></i>
+            <div class="min-w-0">
+              <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ruas Jalan</span>
+              <span class="font-semibold text-slate-800 truncate">{{ $project->ruas_jalan_nomor ? $project->ruas_jalan_nomor.' — ' : '' }}{{ $project->ruas_jalan_nama ?: 'Ruas #'.$project->ruas_jalan_id }}</span>
+            </div>
+          </div>
+          @endif
         </div>
 
         <!-- Progress meter card -->
@@ -407,6 +445,22 @@
     const progressVal = parseFloat({{$project->progress}}).toFixed(1);
     const statusText = @json($project->status);
     const labelText = {{$project->progress}} >= 100 ? 'Progres: 100% (Selesai)' : `Progres: ${progressVal}% (${statusText})`;
+
+    @if($project->ruas_jalan_id)
+    // Tampilkan ruas jalan tempat proyek berada (jika ditautkan)
+    fetch('/ruas_jalan.geojson')
+      .then(r => r.json())
+      .then(gj => {
+        const feat = gj.features.find(f => f.properties && String(f.properties.id) === String({{ $project->ruas_jalan_id }}));
+        if (feat) {
+          const ruasLabel = [feat.properties.nomor_ruas, feat.properties.nama_ruas].filter(Boolean).join(' — ') || ('Ruas #' + feat.properties.id);
+          L.geoJSON(feat, { style: { color: '#f59e0b', weight: 5, opacity: 0.9 } })
+            .bindPopup(`<div class="font-sans text-xs"><strong>Ruas Jalan</strong><br>${ruasLabel}</div>`)
+            .addTo(map);
+        }
+      })
+      .catch(() => {});
+    @endif
 
     marker.bindPopup(`
       <div class="font-sans text-xs p-1">
