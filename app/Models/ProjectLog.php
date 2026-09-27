@@ -17,4 +17,9 @@ class ProjectLog extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function photos()
+    {
+        return $this->hasMany(ProjectPhoto::class, 'project_log_id');
+    }
 }

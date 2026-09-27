@@ -530,7 +530,7 @@
         </div>
 
         <div class="space-y-1">
-          <label for="supReviewNoteInput" class="block font-bold text-slate-300">Catatan / Alasan Hasil Inspeksi Pengawas</label>
+          <label for="supReviewNoteInput" class="block font-bold text-slate-300">Catatan / Alasan Hasil Inspeksi Pengawas (Lapisan 1 - jika disetujui, lanjut ke persetujuan akhir Admin PUPR)</label>
           <textarea name="note" id="supReviewNoteInput" rows="3" required placeholder="Tuliskan alasan hasil pemeriksaan lapangan secara jelas..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-gov-600 focus:outline-none leading-relaxed"></textarea>
         </div>
 
@@ -616,11 +616,11 @@
 
       if (action === 'approve') {
         badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-        badge.innerText = 'SETUJUI PROGRES';
+        badge.innerText = 'SETUJUI (LAPISAN 1: PENGAWAS)';
         submitBtn.className = 'flex-1 py-2.5 text-xs font-bold uppercase text-white bg-gov-600 hover:bg-gov-500 rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5';
       } else {
         badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-red-500/20 text-red-400 border border-red-500/30';
-        badge.innerText = 'TOLAK PROGRES';
+        badge.innerText = 'TOLAK (LAPISAN 1: PENGAWAS)';
         submitBtn.className = 'flex-1 py-2.5 text-xs font-bold uppercase text-white bg-red-600 hover:bg-red-500 rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5';
       }
 

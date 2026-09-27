@@ -579,8 +579,8 @@
 
         <div class="space-y-1">
           <label for="ctrModalPhotoInput" class="block font-bold text-slate-300">Unggah Dokumentasi Foto Fisik Lapangan</label>
-          <input type="file" name="photo" id="ctrModalPhotoInput" accept="image/*" required class="w-full text-slate-400 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-500 cursor-pointer bg-slate-950 border border-slate-800 rounded-xl py-1">
-          <span class="block text-[10px] text-slate-400 mt-1">Format: JPG, PNG. Maksimal 2MB.</span>
+          <input type="file" name="photos[]" id="ctrModalPhotoInput" accept="image/*" multiple required class="w-full text-slate-400 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-500 cursor-pointer bg-slate-950 border border-slate-800 rounded-xl py-1">
+          <span class="block text-[10px] text-slate-400 mt-1">Format: JPG, PNG. Maksimal 2MB/foto. Bisa unggah beberapa foto sekaligus (tahan Ctrl / geser untuk pilih banyak).</span>
         </div>
 
         <div class="pt-2 flex gap-3">
