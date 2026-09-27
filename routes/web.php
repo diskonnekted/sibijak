@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\RuasJalanController;
 use App\Http\Controllers\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 
@@ -74,6 +75,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])-
     Route::post('/projects', [DashboardController::class, 'storeProject'])->name('projects.store');
     Route::put('/projects/{project}', [DashboardController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [DashboardController::class, 'deleteProject'])->name('projects.delete');
+
+    // Approval berlapis: persetujuan akhir admin (lapisan final)
+    Route::post('/projects/{project}/final-verify', [DashboardController::class, 'adminFinalVerifyProject'])->name('projects.final-verify');
+
+    // Referensi Ruas Jalan (geojson) untuk proyek berbasis ruas jalan
+    Route::get('/ruas-jalan', [RuasJalanController::class, 'index'])->name('ruas-jalan.index');
+    Route::get('/ruas-jalan/nearest', [RuasJalanController::class, 'nearest'])->name('ruas-jalan.nearest');
 
     // CMS Konten & Publikasi (Pelatihan, Regulasi, Berita)
     Route::get('/cms', [DashboardController::class, 'cms'])->name('cms');

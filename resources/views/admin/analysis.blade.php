@@ -54,6 +54,63 @@
 
     </div>
 
+    <!-- DISTRIBUSI ANGGARAN PER TAHUN -->
+    <div class="bg-white p-6 rounded border border-slate-200 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-5">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Distribusi Anggaran per Tahun</h2>
+          <span class="text-[10px] text-slate-400 font-semibold uppercase">Nilai Kontrak &amp; Jumlah Paket Fisik</span>
+        </div>
+        <div class="text-right text-xs text-slate-500">
+          <span class="block text-[9px] font-bold uppercase text-slate-400 mb-0.5">Rentang Nilai Kontrak</span>
+          <span class="font-semibold text-slate-700">Rp {{ number_format($stats['nilai_min'], 0, ',', '.') }} &mdash; Rp {{ number_format($stats['nilai_max'], 0, ',', '.') }}</span>
+        </div>
+      </div>
+
+      @php $maxNilai = max(1, collect($stats['anggaran_per_tahun'])->max('nilai')); @endphp
+      <div class="space-y-5">
+        @forelse($stats['anggaran_per_tahun'] as $row)
+          @php $pct = max(2, (int) round($row['nilai'] / $maxNilai * 100)); @endphp
+          <div>
+            <div class="flex items-baseline justify-between text-xs font-semibold mb-1.5 gap-4">
+              <span class="text-slate-700 w-16 shrink-0">TA {{ $row['tahun'] }}</span>
+              <span class="text-slate-500 text-right">{{ $row['jumlah'] }} paket &middot; <span class="text-gov-700 font-bold">Rp {{ number_format($row['nilai'], 0, ',', '.') }}</span></span>
+            </div>
+            <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+              <div class="h-3 rounded-full bg-gov-600 transition-all" style="width: {{ $pct }}%"></div>
+            </div>
+          </div>
+        @empty
+          <div class="py-8 text-center text-slate-400 font-medium">Belum ada data anggaran.</div>
+        @endforelse
+      </div>
+    </div>
+
+    <!-- DONUT: PERSENTASE PAKET & NILAI KONTRAK PER TAHUN -->
+    <div class="bg-white p-6 rounded border border-slate-200 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-6">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Persentase Anggaran per Tahun</h2>
+          <span class="text-[10px] text-slate-400 font-semibold uppercase">Komposisi Paket Fisik &amp; Nilai Kontrak</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider text-center mb-3">Jumlah Paket</h3>
+          <div class="relative h-64">
+            <canvas id="donut-paket"></canvas>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider text-center mb-3">Nilai Kontrak</h3>
+          <div class="relative h-64">
+            <canvas id="donut-nilai"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MAIN GRID SECTION -->
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
       
@@ -171,4 +228,89 @@
     </div>
 
   </div>
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var perTahun = @json($stats['anggaran_per_tahun'] ?? []);
+    if (!perTahun.length || typeof Chart === 'undefined') return;
+
+    var colors = ['#16a34a', '#115e59', '#0d9488', '#f59e0b', '#ea580c', '#dc2626', '#2563eb', '#7c3aed', '#0ea5e9', '#84cc16'];
+    var labels = perTahun.map(function (r) { return 'TA ' + r.tahun; });
+    var jumlah  = perTahun.map(function (r) { return Number(r.jumlah) || 0; });
+    var nilai   = perTahun.map(function (r) { return Number(r.nilai) || 0; });
+
+    var rupiah = function (v) {
+      return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(v);
+    };
+
+    function buildDonut(id, data, formatter) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      new Chart(el, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 8,
+            borderRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                boxWidth: 8,
+                boxHeight: 8,
+                padding: 12,
+                font: { size: 10, weight: 'bold' },
+                color: '#475569',
+                generateLabels: function (chart) {
+                  var d = chart.data;
+                  var t = d.datasets[0].data.reduce(function (a, b) { return a + b; }, 0);
+                  return d.labels.map(function (label, i) {
+                    var v = d.datasets[0].data[i];
+                    var pct = t ? ((v / t) * 100).toFixed(1) : '0.0';
+                    return {
+                      text: label + ' \u00b7 ' + pct + '%',
+                      fillStyle: d.datasets[0].backgroundColor[i],
+                      strokeStyle: '#fff',
+                      lineWidth: 2,
+                      pointStyle: 'circle',
+                      hidden: false,
+                      index: i
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                  var pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+                  return ' ' + ctx.label + ': ' + formatter(ctx.parsed) + ' (' + pct + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    buildDonut('donut-paket', jumlah, function (v) { return v + ' paket'; });
+    buildDonut('donut-nilai', nilai, rupiah);
+  });
+</script>
 @endsection

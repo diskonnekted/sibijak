@@ -45,7 +45,7 @@
       <div class="bg-amber-50/50 border border-amber-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div class="flex items-center gap-2 text-amber-800">
           <i class="ph-fill ph-bell text-xl"></i>
-          <h2 class="text-xs font-extrabold tracking-wide uppercase">Verifikasi Laporan Progres Baru ({{ $pendingVerifications->count() }} Pengajuan)</h2>
+          <h2 class="text-xs font-extrabold tracking-wide uppercase">Lapisan 1 &bull; Verifikasi Pengawas Lapangan ({{ $pendingVerifications->count() }} Pengajuan)</h2>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -79,6 +79,51 @@
                 </button>
                 <button type="button" onclick="openAdminReviewModal({{ $pv->id }}, '{{ addslashes($pv->nama_pekerjaan) }}', '{{ addslashes($pv->contractor->name) }}', {{ $pv->progress }}, {{ $pv->reported_progress }}, 'approve')" class="flex-1 py-1.5 text-[10px] font-bold uppercase text-white bg-gov-900 hover:bg-gov-950 rounded-lg active:scale-[0.98] transition-all shadow-sm">
                   Setujui
+                </button>
+              </div>
+            </div>
+          @endforeach
+        </div>
+      </div>
+    @endif
+
+    <!-- FINAL APPROVAL SECTION (LAPISAN AKHIR - ADMIN PUPR) -->
+    @if($currentRole === 'admin_pupr' && isset($pendingFinalVerifications) && $pendingFinalVerifications->count() > 0)
+      <div class="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center gap-2 text-emerald-800">
+          <i class="ph-fill ph-seal-check text-xl"></i>
+          <h2 class="text-xs font-extrabold tracking-wide uppercase">Lapisan 2 &bull; Persetujuan Akhir Admin ({{ $pendingFinalVerifications->count() }} Pengajuan)</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          @foreach($pendingFinalVerifications as $pv)
+            <div class="bg-white border border-emerald-200 rounded-xl p-4 flex flex-col justify-between shadow-sm space-y-4">
+              <div class="space-y-2">
+                <div class="flex justify-between items-start gap-2">
+                  <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider">{{ $pv->contractor->name }}</span>
+                  <span class="text-[9px] font-mono text-slate-400">Pengawas: {{ $pv->pengawas_verified_at ? date('d M Y H:i', strtotime($pv->pengawas_verified_at)) : '-' }}</span>
+                </div>
+                <h3 class="text-xs font-bold text-slate-900 leading-snug">{{ $pv->nama_pekerjaan }}</h3>
+              </div>
+
+              <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex gap-3 items-center">
+                <img src="{{ asset(ltrim($pv->reported_photo ?: 'storage/projects/sample_default.jpg', '/')) }}" class="w-16 h-12 object-cover rounded border border-slate-200 flex-shrink-0" alt="Foto Progres" onerror="this.onerror=null; this.src='/storage/projects/sample_default.jpg';">
+                <div class="min-w-0">
+                  <span class="block text-[9px] font-bold text-slate-400 uppercase">Usulan Progres Final</span>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-xs font-bold text-slate-500 line-through">{{ number_format($pv->progress, 0) }}%</span>
+                    <i class="ph-bold ph-arrow-right text-slate-400 text-xs"></i>
+                    <span class="text-xs font-extrabold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">{{ number_format($pv->reported_progress, 0) }}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <button type="button" onclick="openAdminFinalModal({{ $pv->id }}, '{{ addslashes($pv->nama_pekerjaan) }}', '{{ addslashes($pv->contractor->name) }}', {{ $pv->progress }}, {{ $pv->reported_progress }}, 'reject')" class="flex-1 py-1.5 text-[10px] font-bold uppercase text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg active:scale-[0.98] transition-all">
+                  Tolak
+                </button>
+                <button type="button" onclick="openAdminFinalModal({{ $pv->id }}, '{{ addslashes($pv->nama_pekerjaan) }}', '{{ addslashes($pv->contractor->name) }}', {{ $pv->progress }}, {{ $pv->reported_progress }}, 'approve')" class="flex-1 py-1.5 text-[10px] font-bold uppercase text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg active:scale-[0.98] transition-all shadow-sm">
+                  Setujui Final
                 </button>
               </div>
             </div>
@@ -247,6 +292,23 @@
 
       <!-- TAB PEKERJAAN CONTENT -->
       <div id="tab-content-pekerjaan" class="@if($currentRole !== 'kontraktor') hidden @endif p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span class="text-xs font-bold text-slate-700">Daftar Paket Pekerjaan</span>
+            <span class="block text-[10px] text-slate-400 font-semibold">
+              {{ $selectedTahun ? 'TA ' . $selectedTahun . ' — ' : '' }}{{ $projects->count() }} paket ditampilkan
+            </span>
+          </div>
+          <form method="GET" action="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
+            <label for="tahun-filter" class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Tahun Anggaran</label>
+            <select id="tahun-filter" name="tahun" onchange="this.form.submit()" class="text-xs font-semibold text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-gov-600">
+              <option value="">Semua Tahun</option>
+              @foreach($availableYears as $y)
+                <option value="{{ $y }}" @selected((string) $selectedTahun === (string) $y)>TA {{ $y }}</option>
+              @endforeach
+            </select>
+          </form>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -521,10 +583,21 @@
         <!-- Filter Status Pills -->
         <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] font-bold no-scrollbar">
           <button type="button" onclick="filterAdminMobileProjects('all')" id="flt-prj-all" class="px-3 py-1.5 rounded bg-white text-slate-950 whitespace-nowrap uppercase tracking-wider">Semua ({{ $projects->count() }})</button>
-          <button type="button" onclick="filterAdminMobileProjects('Dalam Proses')" id="flt-prj-proses" class="px-3 py-1.5 rounded bg-slate-950 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap uppercase tracking-wider">Dalam Proses</button>
+          <button type="button" onclick="filterAdminMobileProjects('Persiapan')" id="flt-prj-persiapan" class="px-3 py-1.5 rounded bg-slate-950 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap uppercase tracking-wider">Persiapan</button>
+          <button type="button" onclick="filterAdminMobileProjects('Pelaksanaan')" id="flt-prj-pelaksanaan" class="px-3 py-1.5 rounded bg-slate-950 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap uppercase tracking-wider">Pelaksanaan</button>
           <button type="button" onclick="filterAdminMobileProjects('Selesai')" id="flt-prj-selesai" class="px-3 py-1.5 rounded bg-slate-950 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap uppercase tracking-wider">Selesai</button>
-          <button type="button" onclick="filterAdminMobileProjects('Pending')" id="flt-prj-pending" class="px-3 py-1.5 rounded bg-slate-950 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap uppercase tracking-wider">Pending</button>
         </div>
+
+        <!-- Filter Tahun Anggaran Mobile -->
+        <form method="GET" action="{{ route('admin.dashboard') }}" class="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded p-2">
+          <label class="text-[9px] font-bold text-slate-400 uppercase whitespace-nowrap">Tahun Anggaran</label>
+          <select name="tahun" onchange="this.form.submit()" class="bg-slate-950 text-slate-200 border border-slate-800 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:border-gov-600">
+            <option value="">Semua Tahun</option>
+            @foreach($availableYears as $y)
+              <option value="{{ $y }}" @selected((string) $selectedTahun === (string) $y)>TA {{ $y }}</option>
+            @endforeach
+          </select>
+        </form>
 
         <!-- Project Cards List -->
         <div class="space-y-3">
@@ -548,7 +621,7 @@
               <div class="space-y-2">
                 <div class="flex justify-between items-center text-[10px]">
                   <span class="text-slate-400">Target Completion: <strong class="text-slate-200">{{ $p->tanggal_deadline ? date('d M Y', strtotime($p->tanggal_deadline)) : '-' }}</strong></span>
-                  @if($daysLeft !== null && $p->status === 'Dalam Proses')
+                  @if($daysLeft !== null && $p->status !== 'Selesai')
                     @if($daysLeft < 0)
                       <span class="text-[9px] font-bold text-red-400 uppercase">Terlewat {{ abs($daysLeft) }} Hari</span>
                     @else
@@ -1003,6 +1076,18 @@
             </div>
 
             <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Ruas Jalan (Lokasi Proyek)</label>
+              <select name="ruas_jalan_id" id="p-ruas" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+                <option value="">— Tidak terkait ruas jalan —</option>
+                @foreach($ruasList as $r)
+                  <option value="{{ $r['id'] }}">{{ $r['nomor_ruas'] ? $r['nomor_ruas'].' — ' : '' }}{{ $r['nama_ruas'] ?: 'Ruas #'.$r['id'] }} ({{ number_format($r['panjang_km'], 2) }} km)</option>
+                @endforeach
+              </select>
+              <p id="ruas-notice" class="hidden mt-1 text-[11px] font-medium text-emerald-700"></p>
+              <p class="mt-1 text-[11px] text-slate-500">Pilih ruas jalan tempat proyek berada, atau klik titik pada peta untuk deteksi otomatis ruas terdekat.</p>
+            </div>
+
+            <div>
               <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Detail Keterangan Lokasi</label>
               <textarea name="detail_lokasi" id="p-detail" rows="2" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all" placeholder="Contoh: Desa Gumiwang RT 02 RW 01"></textarea>
             </div>
@@ -1131,6 +1216,8 @@
         document.getElementById("p-lat").value = p.latitude;
         document.getElementById("p-lng").value = p.longitude;
         document.getElementById("p-detail").value = p.detail_lokasi || '';
+        document.getElementById("p-ruas").value = p.ruas_jalan_id ? String(p.ruas_jalan_id) : '';
+        document.getElementById("ruas-notice").classList.add('hidden');
         document.getElementById("p-tgl-kontrak").value = p.tanggal_kontrak || '';
         document.getElementById("p-tgl-pelaksanaan").value = p.tanggal_pelaksanaan || '';
         document.getElementById("p-tgl-pemeriksaan").value = p.tanggal_pemeriksaan || '';
@@ -1146,6 +1233,8 @@
         
         document.getElementById("p-lat").value = lat;
         document.getElementById("p-lng").value = lng;
+        document.getElementById("p-ruas").value = '';
+        document.getElementById("ruas-notice").classList.add('hidden');
       }
 
       // STRICT FIELD LOCKOUT BY ROLE
@@ -1168,6 +1257,9 @@
         auditFields.forEach(id => document.getElementById(id).disabled = false);
         document.getElementById("map-notice-box").style.display = 'block';
       }
+
+      // Ruas jalan hanya boleh diatur oleh Admin PUPR
+      document.getElementById("p-ruas").disabled = (role !== 'admin_pupr');
 
       document.getElementById("modal-project").classList.remove("hidden");
 
@@ -1220,6 +1312,30 @@
       if (mapMarker) {
         mapMarker.setLatLng([lat, lng]);
       }
+      detectRuas(lat, lng);
+    }
+
+    async function detectRuas(lat, lng) {
+      const sel = document.getElementById("p-ruas");
+      const notice = document.getElementById("ruas-notice");
+      if (!sel || role !== 'admin_pupr') return;
+
+      try {
+        const res = await fetch(`/admin/ruas-jalan/nearest?lat=${lat}&lng=${lng}`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.found && data.ruas) {
+          sel.value = String(data.ruas.id);
+          if (notice) {
+            const label = [data.ruas.nomor_ruas, data.ruas.nama_ruas].filter(Boolean).join(' — ') || ('Ruas #' + data.ruas.id);
+            notice.textContent = `Ruas terdeteksi: ${label} (± ${Math.round(data.ruas.distance_m)} m dari titik)`;
+            notice.classList.remove('hidden');
+          }
+        }
+      } catch (e) {
+        // Abaikan bila gagal; pilihan manual tetap tersedia.
+      }
     }
 
     function closeProjectModal() {
@@ -1267,6 +1383,49 @@
 
     function closeAdminReviewModal() {
       document.getElementById('admReviewModal').classList.add('hidden');
+    }
+
+    // Modal Final Approval (Lapisan Akhir Admin)
+    function openAdminFinalModal(id, title, contractor, oldProgress, newProgress, action) {
+      const modal = document.getElementById('admFinalModal');
+      const form = document.getElementById('admFinalForm');
+      const badge = document.getElementById('admFinalTypeBadge');
+      const modalTitle = document.getElementById('admFinalModalTitle');
+      const projectName = document.getElementById('admFinalProjectName');
+      const contractorName = document.getElementById('admFinalContractorName');
+      const progressText = document.getElementById('admFinalProgressText');
+      const actionInput = document.getElementById('admFinalActionInput');
+      const noteInput = document.getElementById('admFinalNoteInput');
+      const submitBtn = document.getElementById('admFinalSubmitBtn');
+
+      form.action = '/admin/projects/' + id + '/final-verify';
+      actionInput.value = action;
+      projectName.innerText = title;
+      contractorName.innerText = contractor;
+      progressText.innerText = oldProgress.toFixed(0) + '% -> ' + newProgress.toFixed(0) + '%';
+      noteInput.value = '';
+
+      if (action === 'approve') {
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badge.innerText = 'PERSETUJUAN AKHIR';
+        modalTitle.innerText = 'Persetujuan Akhir Progres Fisik';
+        submitBtn.className = 'flex-1 py-2.5 font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow transition-all flex items-center justify-center gap-2';
+        submitBtn.querySelector('span').innerText = 'Konfirmasi & Setujui Final';
+        noteInput.placeholder = 'Contoh: Progres fisik disetujui final sesuai rekomendasi pengawas lapangan...';
+      } else {
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-red-100 text-red-800 border border-red-300';
+        badge.innerText = 'TOLAK PERSETUJUAN';
+        modalTitle.innerText = 'Penolakan Persetujuan Akhir';
+        submitBtn.className = 'flex-1 py-2.5 font-bold text-xs text-white bg-red-600 hover:bg-red-700 rounded-lg shadow transition-all flex items-center justify-center gap-2';
+        submitBtn.querySelector('span').innerText = 'Konfirmasi & Tolak';
+        noteInput.placeholder = 'Contoh: Mohon lengkapi dokumen pendukung sebelum persetujuan akhir...';
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeAdminFinalModal() {
+      document.getElementById('admFinalModal').classList.add('hidden');
     }
   </script>
 
@@ -1323,6 +1482,59 @@
     </div>
   </div>
 
+  <!-- MODAL PERSETUJUAN AKHIR ADMIN (LAPISAN FINAL) -->
+  <div id="admFinalModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" onclick="closeAdminFinalModal()"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+
+        <!-- Header -->
+        <div class="bg-emerald-800 px-6 py-5 text-white flex justify-between items-start">
+          <div>
+            <span id="admFinalTypeBadge" class="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase"></span>
+            <h3 class="text-base font-bold tracking-tight text-white mt-1.5" id="admFinalModalTitle">Persetujuan Akhir Pekerjaan</h3>
+            <p class="text-xs text-slate-200 font-semibold leading-snug mt-0.5" id="admFinalProjectName"></p>
+            <p class="text-[11px] text-slate-300 font-medium" id="admFinalContractorName"></p>
+          </div>
+          <button type="button" onclick="closeAdminFinalModal()" class="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+            <i class="ph-bold ph-x text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <form id="admFinalForm" action="" method="POST" class="p-6 space-y-4">
+          @csrf
+          <input type="hidden" name="action" id="admFinalActionInput">
+
+          <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-200 flex justify-between items-center text-xs">
+            <span class="text-emerald-900 font-semibold">Persetujuan Progres Final:</span>
+            <span class="font-extrabold text-emerald-800 font-mono text-sm" id="admFinalProgressText"></span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Catatan Persetujuan Akhir Admin <span class="text-red-500">*</span>
+            </label>
+            <textarea name="final_note" id="admFinalNoteInput" rows="3" required placeholder="Tuliskan catatan persetujuan akhir admin di sini..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 transition-all"></textarea>
+          </div>
+
+          <div class="flex gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onclick="closeAdminFinalModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-all">
+              Batal
+            </button>
+            <button type="submit" id="admFinalSubmitBtn" class="flex-1 py-2.5 font-bold text-xs text-white rounded-lg shadow transition-all flex items-center justify-center gap-2">
+              <span>Konfirmasi</span>
+              <i class="ph-bold ph-seal-check text-base"></i>
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
   <script>
     function switchAdminMobileTab(tab) {
       ['beranda', 'pekerjaan', 'kontraktor', 'profil', 'log'].forEach(t => {
@@ -1352,10 +1564,10 @@
       });
 
       // Tab styles
-      ['all', 'proses', 'selesai', 'pending'].forEach(st => {
+      ['all', 'pelaksanaan', 'selesai', 'persiapan'].forEach(st => {
         const btn = document.getElementById('flt-prj-' + st);
         if (btn) {
-          if ((st === 'all' && status === 'all') || (st === 'proses' && status === 'Dalam Proses') || (st === 'selesai' && status === 'Selesai') || (st === 'pending' && status === 'Pending')) {
+          if ((st === 'all' && status === 'all') || (st === 'pelaksanaan' && status === 'Pelaksanaan') || (st === 'selesai' && status === 'Selesai') || (st === 'persiapan' && status === 'Persiapan')) {
             btn.className = 'px-3 py-1.5 rounded-lg bg-gov-600 text-white whitespace-nowrap shadow-sm';
           } else {
             btn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 whitespace-nowrap';

@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\ProjectLog;
+use App\Models\ProjectPhoto;
 use App\Models\Training;
 use App\Models\Regulation;
 use App\Models\NewsItem;
 use App\Models\User;
 use App\Models\ActivityLog;
+use App\Services\RuasJalanService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DashboardController extends Controller
@@ -81,7 +84,7 @@ class DashboardController extends Controller
     // Public Project Detail Page with Leaflet map and visual documentation
     public function publicShowProject(Project $project)
     {
-        $project->load(['contractor', 'logs']);
+        $project->load(['contractor', 'logs', 'photos']);
         return view('sibijak.pekerjaan-detail', compact('project'));
     }
 
@@ -407,7 +410,7 @@ class DashboardController extends Controller
     }
 
     // Admin dashboard with multi-tenant filtering based on roles
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $user = auth()->user();
         $role = $user ? $user->role : 'admin_pupr';
@@ -436,6 +439,26 @@ class DashboardController extends Controller
             ];
         }
 
+        // Filter tahun anggaran (optional) untuk menyaring daftar paket pekerjaan
+        $selectedTahun = $request->input('tahun');
+
+        // Daftar proyek terfilter berdasarkan tahun anggaran (jika dipilih)
+        $projects = Project::query()
+            ->when($role === 'kontraktor', fn ($q) => $q->where('contractor_id', $user->contractor_id))
+            ->when($selectedTahun, fn ($q) => $q->where('tahun_anggaran', $selectedTahun))
+            ->with('contractor')
+            ->get();
+
+        // Daftar tahun anggaran unik untuk dropdown filter
+        $availableYears = Project::query()
+            ->when($role === 'kontraktor', fn ($q) => $q->where('contractor_id', $user->contractor_id))
+            ->select('tahun_anggaran')
+            ->distinct()
+            ->orderByDesc('tahun_anggaran')
+            ->pluck('tahun_anggaran')
+            ->filter()
+            ->values();
+
         // Pendaftaran badan usaha yang menunggu verifikasi admin
         $pendingContractors = Contractor::where('status', 'pending')->latest()->get();
 
@@ -446,11 +469,22 @@ class DashboardController extends Controller
         $regulations = Regulation::all();
         $news = NewsItem::all();
 
-        // Get pending verification projects for admin dashboard alert
-        $pendingVerifications = Project::where('verification_status', 'pending')->with('contractor')->get();
+        // Approval berlapis:
+        // Lapisan 1 — menunggu verifikasi pengawas lapangan (pengawas_verified_at kosong)
+        $pendingVerifications = Project::where('verification_status', 'pending')
+            ->whereNull('pengawas_verified_at')
+            ->with('contractor')
+            ->get();
 
-        // Get upcoming deadlines for projects currently in progress
-        $upcomingDeadlines = Project::where('status', 'Dalam Proses')
+        // Lapisan 2 — sudah diverifikasi pengawas, menunggu persetujuan final admin
+        $pendingFinalVerifications = Project::where('verification_status', 'pending')
+            ->whereNotNull('pengawas_verified_at')
+            ->whereNull('final_verified_at')
+            ->with('contractor')
+            ->get();
+
+        // Get upcoming deadlines for projects not yet finished
+        $upcomingDeadlines = Project::whereIn('status', ['Persiapan', 'Pelaksanaan'])
             ->whereNotNull('tanggal_deadline')
             ->with('contractor')
             ->orderBy('tanggal_deadline', 'asc')
@@ -460,7 +494,11 @@ class DashboardController extends Controller
         // Get recent activity logs for mobile audit tab preview
         $activityLogs = ActivityLog::with('user')->orderBy('created_at', 'desc')->take(10)->get();
 
-        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'upcomingDeadlines', 'activityLogs', 'pendingContractors', 'approvedContractors'));
+        // Daftar ruas jalan (geojson) untuk penautan lokasi proyek
+        $ruasList = RuasJalanService::all();
+        $ruasStats = RuasJalanService::stats();
+
+        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'pendingFinalVerifications', 'upcomingDeadlines', 'activityLogs', 'pendingContractors', 'approvedContractors', 'ruasList', 'ruasStats', 'selectedTahun', 'availableYears'));
     }
 
     // Admin Map Monitoring Page filtered by role
@@ -479,7 +517,15 @@ class DashboardController extends Controller
             'total_projects' => $projects->count(),
             'average_progress' => $projects->avg('progress') ?? 0,
         ];
-        return view('admin.map', compact('projects', 'stats'));
+
+        // Statistik penautan ruas jalan
+        $ruasStats = [
+            'total_ruas'   => RuasJalanService::stats()['total_ruas'],
+            'ruas_linked'  => Project::whereNotNull('ruas_jalan_id')->distinct()->count('ruas_jalan_id'),
+            'project_linked' => Project::whereNotNull('ruas_jalan_id')->count(),
+        ];
+
+        return view('admin.map', compact('projects', 'stats', 'ruasStats'));
     }
 
     // Admin Analysis Dashboard Page - Access Restricted for Contractors
@@ -503,6 +549,19 @@ class DashboardController extends Controller
             'status_persiapan' => $projects->where('status', 'Persiapan')->count(),
             'status_pelaksanaan' => $projects->where('status', 'Pelaksanaan')->count(),
             'status_selesai' => $projects->where('status', 'Selesai')->count(),
+
+            // Rentang & distribusi nilai kontrak + per tahun anggaran (untuk grafik)
+            'nilai_min' => $projects->min('nilai_kontrak') ?? 0,
+            'nilai_max' => $projects->max('nilai_kontrak') ?? 0,
+            'anggaran_per_tahun' => $projects->groupBy('tahun_anggaran')
+                ->map(fn ($g, $tahun) => [
+                    'tahun'  => $tahun,
+                    'jumlah' => $g->count(),
+                    'nilai'  => (float) $g->sum('nilai_kontrak'),
+                ])
+                ->sortKeys()
+                ->values()
+                ->all(),
         ];
         
         // Identify high-risk projects
@@ -863,11 +922,14 @@ class DashboardController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'detail_lokasi' => 'nullable|string',
+            'ruas_jalan_id' => 'nullable|integer',
             'tanggal_kontrak' => 'nullable|date',
             'tanggal_pelaksanaan' => 'nullable|date',
             'tanggal_pemeriksaan' => 'nullable|date',
             'tanggal_deadline' => 'nullable|date',
         ]);
+
+        $this->applyRuasJalan($validated);
 
         Project::create($validated);
 
@@ -923,14 +985,51 @@ class DashboardController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'detail_lokasi' => 'nullable|string',
+            'ruas_jalan_id' => 'nullable|integer',
             'tanggal_kontrak' => 'nullable|date',
             'tanggal_pelaksanaan' => 'nullable|date',
             'tanggal_pemeriksaan' => 'nullable|date',
             'tanggal_deadline' => 'nullable|date',
         ]);
 
+        $this->applyRuasJalan($validated);
+
         $project->update($validated);
         return redirect()->route('admin.dashboard')->with('success', 'Pekerjaan berhasil diperbarui.');
+    }
+
+    /**
+     * Isi kolom snapshot ruas jalan (nomor & nama) berdasarkan ruas_jalan_id
+     * yang dipilih. Dipanggil saat membuat/memperbarui proyek oleh admin.
+     */
+    protected function applyRuasJalan(array &$validated): void
+    {
+        $ruasId = isset($validated['ruas_jalan_id']) && $validated['ruas_jalan_id'] !== ''
+            ? (int) $validated['ruas_jalan_id']
+            : null;
+
+        if ($ruasId === null) {
+            $validated['ruas_jalan_id'] = null;
+            $validated['ruas_jalan_nomor'] = null;
+            $validated['ruas_jalan_nama'] = null;
+
+            return;
+        }
+
+        $ruas = RuasJalanService::find($ruasId);
+
+        if ($ruas === null) {
+            // Id tidak dikenal -> jangan tautkan.
+            $validated['ruas_jalan_id'] = null;
+            $validated['ruas_jalan_nomor'] = null;
+            $validated['ruas_jalan_nama'] = null;
+
+            return;
+        }
+
+        $validated['ruas_jalan_id'] = $ruas['id'];
+        $validated['ruas_jalan_nomor'] = $ruas['nomor_ruas'];
+        $validated['ruas_jalan_nama'] = $ruas['nama_ruas'];
     }
 
     public function deleteProject(Project $project)
@@ -968,30 +1067,54 @@ class DashboardController extends Controller
 
         $validated = $request->validate([
             'progress' => 'required|numeric|min:0|max:100',
-            'photo' => 'nullable|image|max:2048'
+            'photos' => 'nullable|array',
+            'photos.*' => 'image|max:2048'
         ]);
-
-        if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('projects', 'public');
-            $project->reported_photo = 'storage/' . $path;
-        } else {
-            // Default local storage image fallback if no file attached
-            $project->reported_photo = 'storage/projects/sample_default.jpg';
-        }
 
         $project->reported_progress = $validated['progress'];
         $project->reported_at = now();
         $project->verification_status = 'pending';
+        // Reset lapisan approval untuk pengajuan baru
+        $project->pengawas_verified_at = null;
+        $project->pengawas_verified_by = null;
+        $project->final_verified_at = null;
+        $project->final_verified_by = null;
+        $project->final_verification_note = null;
         $project->save();
 
-        ProjectLog::create([
+        $log = ProjectLog::create([
             'project_id' => $project->id,
             'user_id' => $user->id,
             'action' => 'submission',
             'progress' => $validated['progress'],
-            'photo' => $project->reported_photo,
+            'photo' => null,
             'note' => 'Pengajuan progres fisik ' . number_format($validated['progress'], 0) . '% diajukan oleh penyedia jasa.',
         ]);
+
+        $firstPhoto = true;
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $file) {
+                $path = $file->store('projects', 'public');
+                $storedPath = 'storage/' . $path;
+
+                ProjectPhoto::create([
+                    'project_id' => $project->id,
+                    'project_log_id' => $log->id,
+                    'path' => $storedPath,
+                    'caption' => 'Foto progres ' . number_format($validated['progress'], 0) . '%',
+                ]);
+
+                if ($firstPhoto) {
+                    $project->reported_photo = $storedPath;
+                    $project->save();
+                    $log->update(['photo' => $storedPath]);
+                    $firstPhoto = false;
+                }
+            }
+        } elseif (!$project->reported_photo) {
+            $project->reported_photo = 'storage/projects/sample_default.jpg';
+            $project->save();
+        }
 
         ActivityLog::log('SUBMIT_PROGRESS', "Pengajuan progres fisik {$validated['progress']}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
 
@@ -1006,7 +1129,11 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak.');
         }
 
-        $pendingProjects = Project::where('verification_status', 'pending')->with('contractor')->get();
+        // Hanya lapisan 1: laporan yang belum diverifikasi pengawas
+        $pendingProjects = Project::where('verification_status', 'pending')
+            ->whereNull('pengawas_verified_at')
+            ->with('contractor')
+            ->get();
         $allProjects = Project::with('contractor')->get();
 
         return view('mobile.supervisor', compact('pendingProjects', 'allProjects', 'user'));
@@ -1021,23 +1148,22 @@ class DashboardController extends Controller
         }
 
         $action = $request->input('action'); // approve or reject
-        $note = $request->input('verification_note');
+        // Terima catatan dari form pengawas (name="note") maupun form admin (name="verification_note")
+        $note = $request->input('verification_note') ?: $request->input('note');
 
         if ($action === 'approve') {
-            $project->progress = $project->reported_progress;
-            if ($project->progress >= 100) {
-                $project->status = 'Selesai';
-            } else {
-                $project->status = 'Pelaksanaan';
-            }
-            $project->tanggal_pemeriksaan = now()->toDateString();
-            $project->verification_status = 'verified';
-            $project->verification_note = $note ?: 'Progres fisik terverifikasi dan disetujui sesuai hasil pengawasan lapangan.';
+            // Lapisan 1 disetujui pengawas -> lanjut ke persetujuan final admin
+            $project->pengawas_verified_at = now();
+            $project->pengawas_verified_by = $user->id;
+            $project->verification_status = 'pending';
+            $project->verification_note = $note ?: 'Progres fisik terverifikasi pengawas lapangan dan diajukan untuk persetujuan akhir admin.';
             
-            ActivityLog::log('VERIFY_APPROVE', "Verifikasi DISETUJUI progres {$project->progress}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
+            ActivityLog::log('VERIFY_APPROVE', "Verifikasi lapisan pengawas DISETUJUI progres {$project->reported_progress}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
         } else {
-            // Reject report
+            // Reject report (ditolak di lapisan pengawas)
             $project->verification_status = 'rejected';
+            $project->pengawas_verified_at = null;
+            $project->pengawas_verified_by = null;
             $project->verification_note = $note ?: 'Pengajuan progres ditolak oleh pengawas lapangan.';
 
             ActivityLog::log('VERIFY_REJECT', "Verifikasi DITOLAK progres untuk paket '{$project->nama_pekerjaan}'", $user, $request);
@@ -1049,11 +1175,58 @@ class DashboardController extends Controller
             'project_id' => $project->id,
             'user_id' => $user->id,
             'action' => $action === 'approve' ? 'approve' : 'reject',
-            'progress' => $project->progress,
+            'progress' => $project->reported_progress,
             'photo' => $project->reported_photo,
             'note' => $project->verification_note,
         ]);
 
         return redirect()->back()->with('success', 'Status verifikasi progres fisik pekerjaan berhasil diperbarui.');
+    }
+
+    // ADMIN: Persetujuan Akhir (Lapisan Final) oleh Admin PUPR
+    public function adminFinalVerifyProject(Request $request, Project $project)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'admin_pupr') {
+            return redirect()->route('admin.dashboard')->with('error', 'Akses ditolak. Hanya Admin PUPR yang dapat memberikan persetujuan akhir.');
+        }
+
+        $action = $request->input('action'); // approve or reject
+        $note = $request->input('final_note');
+
+        if ($action === 'approve') {
+            // Lapisan akhir: terapkan progres resmi ke data proyek
+            $project->progress = $project->reported_progress;
+            if ($project->progress >= 100) {
+                $project->status = 'Selesai';
+            } else {
+                $project->status = 'Pelaksanaan';
+            }
+            $project->tanggal_pemeriksaan = now()->toDateString();
+            $project->final_verified_at = now();
+            $project->final_verified_by = $user->id;
+            $project->final_verification_note = $note ?: 'Persetujuan akhir diberikan Admin PUPR sesuai rekomendasi pengawas lapangan.';
+            $project->verification_status = 'verified';
+
+            ActivityLog::log('FINAL_APPROVE', "Persetujuan AKHIR progres {$project->progress}% untuk paket '{$project->nama_pekerjaan}'", $user, $request);
+        } else {
+            $project->verification_status = 'rejected';
+            $project->final_verification_note = $note ?: 'Persetujuan akhir ditolak oleh Admin PUPR.';
+
+            ActivityLog::log('FINAL_REJECT', "Persetujuan akhir DITOLAK untuk paket '{$project->nama_pekerjaan}'", $user, $request);
+        }
+
+        $project->save();
+
+        ProjectLog::create([
+            'project_id' => $project->id,
+            'user_id' => $user->id,
+            'action' => $action === 'approve' ? 'final_approve' : 'final_reject',
+            'progress' => $project->progress ?? $project->reported_progress ?? 0,
+            'photo' => $project->reported_photo,
+            'note' => $project->final_verification_note,
+        ]);
+
+        return redirect()->back()->with('success', 'Persetujuan akhir progres fisik pekerjaan berhasil diperbarui.');
     }
 }
