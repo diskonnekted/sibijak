@@ -654,7 +654,7 @@ class DashboardController extends Controller
                 $daysRemaining = \Carbon\Carbon::now()->diffInDays($deadline, false);
                 
                 if ($daysRemaining < 90 || $p->progress < 50) {
-                    $p->days_remaining = $daysRemaining;
+                    $p->days_remaining = round($daysRemaining);
                     $highRiskProjects[] = $p;
                 }
             }
