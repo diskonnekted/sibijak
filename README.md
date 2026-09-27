@@ -1,83 +1,167 @@
-# SIBIJAK Banjarnegara - Sistem Informasi Pembina Jasa Konstruksi & Fisik
+# SIBIJAK — Sistem Informasi Pembina Jasa Konstruksi & Fisik
 
-Aplikasi Web & Mobile Dinas Pekerjaan Umum dan Penataan Ruang (PUPR) Kabupaten Banjarnegara untuk melakukan monitoring proyek fisik, evaluasi kinerja kontraktor, pengawasan berkala, serta pelaporan progres berbasis spasial.
+Aplikasi web & mobile **Dinas Pekerjaan Umum dan Penataan Ruang (PUPR) Kabupaten
+Banjarnegara** untuk memantau proyek fisik, mengevaluasi kinerja kontraktor,
+melakukan pengawasan lapangan, serta pelaporan progres berbasis spasial.
 
 ---
 
-## 👥 Pengguna Uji Coba & Hak Akses (Credentials)
+## 🧱 Tech Stack
 
-Sistem menggunakan enkripsi bawaan dan dapat diuji menggunakan data seeder berikut (Password untuk semua akun: `password`):
+| Komponen | Teknologi |
+| :--- | :--- |
+| Framework | Laravel 12 |
+| Bahasa | PHP ^8.2 |
+| Database | SQLite (`database/database.sqlite`) |
+| Peta | Leaflet |
+| Frontend | Blade + Tailwind (responsif: desktop & mobile) |
+| Upload | Storage lokal (`storage/app/public`, symlink `public/storage`) |
 
-| Peran (Role) | Alamat Email | Target Utama & Hak Akses |
+---
+
+## 👤 Pengguna & Credentials Uji Coba
+
+Semua akun seeder memakai password: `password`
+
+| Peran (Role) | Alamat Email | Hak Akses |
 | :--- | :--- | :--- |
-| **Admin PUPR** | `admin@pupr.banjarnegara.go.id` | Akses Kontrol Penuh (CRUD Kontraktor/Proyek, Analisa & Rekomendasi, Verifikasi Pengajuan) |
-| **Kontraktor (Pelaksana)** | `kontraktor@sikap.id` | Mengelola data perusahaan sendiri & melakukan pelaporan foto progres di lokasi proyek |
-| **Pengawas Lapangan** | `pemeriksa@sikap.id` | Memantau seluruh proyek & memverifikasi progress fisik yang diajukan oleh kontraktor |
+| **Admin PUPR** (`admin_pupr`) | `admin@pupr.banjarnegara.go.id` | Kontrol penuh: CRUD kontraktor/proyek/pengawas, CMS, analisa, verifikasi akhir |
+| **Kontraktor / Pelaksana** (`kontraktor`) | `kontraktor@sikap.id` | Kelola data perusahaan + lapor progres (foto) di lokasi proyek |
+| **Pengawas Lapangan** (`pemeriksa_lapangan`) | `pemeriksa@sikap.id` | Verifikasi laporan lapangan + dokumentasi cross-check + riwayat verifikasi |
+
+Kontraktor seeder lainnya (password sama): `serayuagung@sikap.id`,
+`elektrindo@sikap.id`, `gumiwang@sikap.id`.
 
 ---
 
-## 📱 Panduan Penggunaan Halaman Mobile
+## 🔄 Alur Kerja Utama
 
-Aplikasi seluler didesain responsif dengan navigasi menu bawah (*Bottom Navigation Bar*) untuk menunjang aktivitas lapangan.
+### Approval Berlapis (dua lapis verifikasi)
 
-### 👷 1. Alur Kerja Peran Kontraktor (Pelaksana)
-Rute Akses: `http://127.0.0.1:8000/mobile/kontraktor`
+```
+Kontraktor            Pengawas Lapangan            Admin PUPR
+lapor progres  ──▶  verifikasi lapangan (1)  ──▶  persetujuan akhir (2)
+ (foto bukti)       approve / reject              final_approve / final_reject
+```
 
-1. **Masuk Log (Log In)**: Akses rute mobile menggunakan email `kontraktor@sikap.id`. Sistem akan mengarahkan secara otomatis ke dashboard mobile kontraktor.
-2. **Tab Proyek (Bottom Nav - Proyek)**: Halaman utama menampilkan daftar paket pekerjaan fisik yang sedang dikerjakan oleh perusahaan pelaksana terkait lengkap dengan status target dan progress bar.
-3. **Mengajukan Progres Baru (Lapor)**:
-   * Klik tombol **"Laporkan Progres Baru"** pada kartu pekerjaan.
-   * Masukkan persentase capaian kemajuan fisik baru (%) pada kolom isian.
-   * Pilih berkas foto dokumentasi visual proyek terbaru menggunakan tombol unggah foto.
-   * Klik **"Kirim Laporan"**. Pengajuan akan masuk ke dalam antrean pemeriksaan dengan status *Menunggu Review*.
+1. **Kontraktor** mengajukan progres fisik baru + foto dokumentasi.
+2. **Pengawas lapangan** memeriksa di lapangan, mengunggah **foto dokumentasi
+   cross-check**, lalu menyetujui/menolak (lapisan 1).
+3. **Admin PUPR** melakukan persetujuan akhir (lapisan 2) sebelum data progres
+   diresmikan ke data spasial utama.
 
----
+Status verifikasi: `pending`, `rejected`, `verified`, `clean`.
 
-### 🔍 2. Alur Kerja Peran Pengawas Lapangan (Pemeriksa)
-Rute Akses: `http://127.0.0.1:8000/mobile/pengawas`
+### Hak Akses dan Rute Portal
 
-1. **Masuk Log (Log In)**: Akses rute mobile menggunakan email `pemeriksa@sikap.id`.
-2. **Tab Verifikasi (Bottom Nav - Verifikasi)**:
-   * Menampilkan daftar antrean laporan progress fisik yang diajukan oleh para kontraktor pelaksana.
-   * Menampilkan rincian nama pekerjaan, nama kontraktor, persentase kenaikan progres, serta preview gambar/foto bukti fisik proyek di lapangan.
-   * Pengawas dapat mengeklik **Setujui** untuk memvalidasi progress ke dalam data spasial utama, atau mengeklik **Tolak** untuk membatalkan pengajuan.
-3. **Tab Peta (Bottom Nav - Peta Spasial)**:
-   * Menampilkan peta Leaflet interaktif sebaran lokasi pekerjaan di Kabupaten Banjarnegara.
-   * Dilengkapi dengan penanda lingkaran dinamis berwarna merah (kritis), kuning (sedang), atau hijau (aman) sesuai dengan status progress fisik.
-   * Klik penanda (*marker*) untuk memunculkan ringkasan detail pekerjaan.
+| Role | Rute |
+| :--- | :--- |
+| Publik | `/`, `/pekerjaan/{id}`, `/daftar`, `/badanusaha`, `/pelatihan`, `/regulasi`, `/berita` |
+| Admin | `/admin` (dashboard, map, analisa, log, CMS, kontraktor, proyek, pengawas) |
+| Kontraktor | `/kontraktor` (dashboard + lapor progres) |
+| Pengawas | `/pengawas` (verifikasi + peta + riwayat verifikasi) |
+| Login | `/login`, `/admin/login`, `/kontraktor/login`, `/pengawas/login` |
 
----
-
-## 🖥️ Integrasi Dasbor Utama Desktop (Admin & Pengawas)
-Rute Akses: `http://127.0.0.1:8000/admin`
-
-* **Notifikasi Pengajuan Progres**: Jika login sebagai Admin PUPR atau Pengawas Lapangan melalui browser desktop, panel khusus **"Verifikasi Laporan Progres Baru"** akan otomatis muncul di bagian teratas dasbor apabila terdapat antrean verifikasi aktif yang belum diproses oleh pengawas lapangan.
-* **Aksi Cepat**: Admin dapat menolak atau menyetujui pengajuan progres lengkap dengan foto bukti fisik proyek secara langsung dari dasbor desktop.
+> Middleware `role` memisahkan akses: `admin_pupr`, `kontraktor`, `pemeriksa_lapangan`.
+> Route `/sim-login/{user}` hanya aktif di environment `local` (untuk berganti peran saat dev).
 
 ---
 
-## 🛠️ Langkah Instalasi Lokal
+## 🌐 API Publik Data Pekerjaan
 
-Lakukan langkah-langkah berikut di terminal untuk menjalankan proyek ini secara lokal:
+Untuk konsumen eksternal (inspektorat, OPD, aplikasi mitra). Base URL: `/api`.
 
-1. **Unduh Dependensi Composer**:
-   ```bash
-   composer install
-   ```
+| Method | Endpoint | Keterangan |
+| :--- | :--- | :--- |
+| GET | `/api/proyek` | Daftar pekerjaan. Filter: `?status=`, `?verification_status=`, `?tahun=`, `?search=`, `?per_page=` |
+| GET | `/api/proyek/{id}` | Detail pekerjaan + riwayat verifikasi + foto dokumentasi |
+| GET | `/api/statistik` | Rekapitulasi total, nilai kontrak, rata-rata progress, per status |
 
-2. **Salin Environment file & Set Key**:
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+**Autentikasi** — kirim header `X-API-KEY: <kunci>` (nilai diatur lewat `API_KEY`
+di `.env`). Jika `API_KEY` kosong, endpoint terbuka (mode dev lokal).
 
-3. **Inisialisasi Database, Migrasi, & Seeder**:
-   ```bash
-   php artisan migrate:fresh --seed
-   ```
+Contoh request:
 
-4. **Jalankan Server Lokal**:
-   ```bash
-   php artisan serve
-   ```
-   Akses aplikasi di browser Anda melalui alamat: `http://127.0.0.1:8000`.
+```bash
+curl -H "X-API-KEY: inspektorat-2026-sibijak" http://127.0.0.1:8086/api/proyek
+curl -H "X-API-KEY: inspektorat-2026-sibijak" "http://127.0.0.1:8086/api/proyek?status=Pelaksanaan&tahun=2025"
+```
+
+Payload pekerjaan memuat: `nama_pekerjaan`, `pelaksana`, `nilai_kontrak`,
+`tahun_anggaran`, `status`, `progress`, `status_verifikasi`, `pengawas`, `lokasi`
+(lat/long), `jadwal`, dan info verifikasi berlapis.
+
+---
+
+## 📦 Instalasi Lokal
+
+Prasyarat: PHP 8.2+, Composer, ekstensi `sqlite3`.
+
+### Opsi A — Migrasi + Seeder (bersih)
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate:fresh --seed
+php artisan storage:link
+php artisan serve
+```
+
+Akses: `http://127.0.0.1:8086` (atau port dari `php artisan serve`).
+
+Seeder membuat 23 proyek, 229 foto, kontraktor, dan pengawas demo lengkap.
+
+### Opsi B — Restore Dump SQL (data dummy lengkap)
+
+Dump penuh tersedia di `database/sibijak-dump.sql`:
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+sqlite3 database/database.sqlite < database/sibijak-dump.sql
+php artisan storage:link
+php artisan serve
+```
+
+---
+
+## 🗂️ Struktur Penting
+
+```
+app/Http/Controllers/DashboardController.php   # controller utama (hampir semua fitur)
+app/Http/Controllers/Api/ProyekApiController.php # API publik data pekerjaan
+app/Http/Middleware/RoleMiddleware.php         # gate role
+app/Http/Middleware/ApiKeyMiddleware.php       # gate API key
+routes/web.php                                 # rute web (portal, admin, kontraktor, pengawas)
+routes/api.php                                 # rute API publik
+database/seeders/DatabaseSeeder.php            # data dummy + foto proyek
+database/sibijak-dump.sql                      # dump SQL lengkap (opsi restore cepat)
+public/storage -> storage/app/public           # upload foto & dokumen
+public/pekerjaan-*-dummy/                      # sumber foto dummy (jalan, gedung, jembatan, air)
+```
+
+---
+
+## 📝 Fitur
+
+- **Proyek fisik** — CRUD, lokasi spasial (lat/long), ruas jalan (geojson), jadwal, nilai kontrak, progres.
+- **Monitoring progres** — lapor progres kontraktor + foto per tahap, timeline & galeri foto.
+- **Approval berlapis** — verifikasi pengawas → persetujuan akhir admin.
+- **Dokumentasi & cross-check** — unggah foto multi (maks. 8) oleh pengawas.
+- **Penugasan pengawas** — `pengawas_id` per proyek + riwayat verifikasi di dasbor pengawas.
+- **Badan usaha / kontraktor** — registrasi, verifikasi admin, profil & rating.
+- **CMS** — pelatihan, regulasi (upload PDF + kategori + unduh), berita (upload foto cover + kategori).
+- **Analisa & rekomendasi** — tab analisa admin + log aktivitas (audit).
+- **API publik** — data pekerjaan untuk integrasi lintas sistem.
+
+---
+
+## ⚙️ Catatan
+
+- `APP_URL` di `.env.example` memakai `http://127.0.0.1:8086`; sesuaikan dengan port server Anda.
+- Upload foto disimpan di `storage/app/public`, jangan lupa `php artisan storage:link` setelah install.
+- Database live (`database/database.sqlite`) **tidak di-commit** (terdaftar di `.gitignore`).
+  Gunakan `database/sibijak-dump.sql` untuk berbagi data dummy antar lingkungan.
