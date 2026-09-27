@@ -74,6 +74,21 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])-
     Route::post('/projects', [DashboardController::class, 'storeProject'])->name('projects.store');
     Route::put('/projects/{project}', [DashboardController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [DashboardController::class, 'deleteProject'])->name('projects.delete');
+
+    // CMS Konten & Publikasi (Pelatihan, Regulasi, Berita)
+    Route::get('/cms', [DashboardController::class, 'cms'])->name('cms');
+
+    Route::post('/cms/pelatihan', [DashboardController::class, 'storeTraining'])->name('cms.pelatihan.store');
+    Route::put('/cms/pelatihan/{training}', [DashboardController::class, 'updateTraining'])->name('cms.pelatihan.update');
+    Route::delete('/cms/pelatihan/{training}', [DashboardController::class, 'deleteTraining'])->name('cms.pelatihan.delete');
+
+    Route::post('/cms/regulasi', [DashboardController::class, 'storeRegulation'])->name('cms.regulasi.store');
+    Route::put('/cms/regulasi/{regulation}', [DashboardController::class, 'updateRegulation'])->name('cms.regulasi.update');
+    Route::delete('/cms/regulasi/{regulation}', [DashboardController::class, 'deleteRegulation'])->name('cms.regulasi.delete');
+
+    Route::post('/cms/berita', [DashboardController::class, 'storeNews'])->name('cms.berita.store');
+    Route::put('/cms/berita/{news}', [DashboardController::class, 'updateNews'])->name('cms.berita.update');
+    Route::delete('/cms/berita/{news}', [DashboardController::class, 'deleteNews'])->name('cms.berita.delete');
 });
 
 // Portal Kontraktor (Responsive Desktop & Mobile)

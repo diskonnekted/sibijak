@@ -99,6 +99,10 @@
         @endif
 
         @if($currentRole === 'admin_pupr')
+          <a href="{{ route('admin.cms') }}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm font-semibold tracking-wide {{ Request::is('admin/cms*') ? 'bg-gov-900 text-white shadow-sm' : 'hover:bg-slate-800 hover:text-white' }} transition-all">
+            <i class="ph-bold ph-newspaper text-lg"></i>
+            <span>Kelola Konten</span>
+          </a>
           <a href="{{ route('admin.logs') }}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm font-semibold tracking-wide {{ Route::is('admin.logs') ? 'bg-gov-900 text-white shadow-sm' : 'hover:bg-slate-800 hover:text-white' }} transition-all">
             <i class="ph-bold ph-shield-check text-lg"></i>
             <span>Log Aktivitas User</span>

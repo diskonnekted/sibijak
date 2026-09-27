@@ -109,7 +109,7 @@ class DashboardController extends Controller
     // SIBIJAK: Berita Page
     public function berita()
     {
-        $news = NewsItem::orderBy('tanggal', 'desc')->get();
+        $news = NewsItem::where('status', 'publish')->orderBy('tanggal', 'desc')->get();
         return view('sibijak.berita', compact('news'));
     }
 
@@ -700,6 +700,150 @@ class DashboardController extends Controller
         ActivityLog::log('contractor_rejected', 'Badan usaha "' . $contractor->name . '" ditolak.');
 
         return redirect()->route('admin.dashboard')->with('success', 'Pendaftaran badan usaha ditolak.');
+    }
+
+    // ===== CMS Konten & Publikasi =====
+    public function cms()
+    {
+        $trainings = Training::orderBy('tanggal', 'desc')->get();
+        $regulations = Regulation::orderBy('tahun', 'desc')->get();
+        $news = NewsItem::orderBy('tanggal', 'desc')->get();
+
+        return view('admin.cms', compact('trainings', 'regulations', 'news'));
+    }
+
+    // --- Pelatihan ---
+    public function storeTraining(Request $request)
+    {
+        $validated = $request->validate([
+            'nama_pelatihan' => 'required|string|max:255',
+            'tanggal' => 'required|date',
+            'kuota' => 'required|integer|min:1',
+            'status' => 'nullable|string|max:50',
+            'detail' => 'nullable|string',
+        ]);
+
+        $training = Training::create($validated);
+
+        ActivityLog::log('create_training', 'Membuat pelatihan baru: ' . $training->nama_pelatihan);
+
+        return redirect()->route('admin.cms')->with('success', 'Pelatihan berhasil ditambahkan.');
+    }
+
+    public function updateTraining(Request $request, Training $training)
+    {
+        $validated = $request->validate([
+            'nama_pelatihan' => 'required|string|max:255',
+            'tanggal' => 'required|date',
+            'kuota' => 'required|integer|min:1',
+            'status' => 'nullable|string|max:50',
+            'detail' => 'nullable|string',
+        ]);
+
+        $training->update($validated);
+
+        ActivityLog::log('update_training', 'Memperbarui pelatihan: ' . $training->nama_pelatihan);
+
+        return redirect()->route('admin.cms')->with('success', 'Pelatihan berhasil diperbarui.');
+    }
+
+    public function deleteTraining(Training $training)
+    {
+        $training->delete();
+
+        ActivityLog::log('delete_training', 'Menghapus pelatihan: ' . $training->nama_pelatihan);
+
+        return redirect()->route('admin.cms')->with('success', 'Pelatihan berhasil dihapus.');
+    }
+
+    // --- Regulasi ---
+    public function storeRegulation(Request $request)
+    {
+        $validated = $request->validate([
+            'judul' => 'required|string|max:255',
+            'nomor' => 'nullable|string|max:100',
+            'tahun' => 'nullable|integer|min:1900|max:2100',
+            'kategori' => 'nullable|string|max:100',
+            'deskripsi' => 'nullable|string',
+        ]);
+
+        $regulation = Regulation::create($validated);
+
+        ActivityLog::log('create_regulation', 'Membuat regulasi baru: ' . $regulation->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Regulasi berhasil ditambahkan.');
+    }
+
+    public function updateRegulation(Request $request, Regulation $regulation)
+    {
+        $validated = $request->validate([
+            'judul' => 'required|string|max:255',
+            'nomor' => 'nullable|string|max:100',
+            'tahun' => 'nullable|integer|min:1900|max:2100',
+            'kategori' => 'nullable|string|max:100',
+            'deskripsi' => 'nullable|string',
+        ]);
+
+        $regulation->update($validated);
+
+        ActivityLog::log('update_regulation', 'Memperbarui regulasi: ' . $regulation->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Regulasi berhasil diperbarui.');
+    }
+
+    public function deleteRegulation(Regulation $regulation)
+    {
+        $regulation->delete();
+
+        ActivityLog::log('delete_regulation', 'Menghapus regulasi: ' . $regulation->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Regulasi berhasil dihapus.');
+    }
+
+    // --- Berita ---
+    public function storeNews(Request $request)
+    {
+        $validated = $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'tanggal' => 'required|date',
+            'kategori' => 'nullable|string|max:100',
+            'cover_image' => 'nullable|string|max:255',
+            'status' => 'required|in:draft,publish',
+        ]);
+
+        $news = NewsItem::create($validated);
+
+        ActivityLog::log('create_news', 'Membuat berita baru: ' . $news->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Berita berhasil ditambahkan.');
+    }
+
+    public function updateNews(Request $request, NewsItem $news)
+    {
+        $validated = $request->validate([
+            'judul' => 'required|string|max:255',
+            'konten' => 'required|string',
+            'tanggal' => 'required|date',
+            'kategori' => 'nullable|string|max:100',
+            'cover_image' => 'nullable|string|max:255',
+            'status' => 'required|in:draft,publish',
+        ]);
+
+        $news->update($validated);
+
+        ActivityLog::log('update_news', 'Memperbarui berita: ' . $news->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Berita berhasil diperbarui.');
+    }
+
+    public function deleteNews(NewsItem $news)
+    {
+        $news->delete();
+
+        ActivityLog::log('delete_news', 'Menghapus berita: ' . $news->judul);
+
+        return redirect()->route('admin.cms')->with('success', 'Berita berhasil dihapus.');
     }
 
     // CRUD Project
