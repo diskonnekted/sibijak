@@ -25,6 +25,13 @@
         </div>
       @endif
 
+      @if(session('success'))
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded flex items-center gap-3 text-sm font-semibold mb-6">
+          <i class="ph-bold ph-check-circle text-lg text-emerald-600"></i>
+          <span>{{ session('success') }}</span>
+        </div>
+      @endif
+
       <!-- Tab Controller -->
       <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
         <div class="border-b border-slate-200 bg-slate-50 flex">
@@ -80,7 +87,7 @@
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Email Perusahaan</label>
-                <input type="email" name="email" placeholder="example@perusahaan.co.id" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
+                <input type="email" name="email" required placeholder="example@perusahaan.co.id" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nomor Telepon</label>

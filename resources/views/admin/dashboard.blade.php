@@ -159,6 +159,27 @@
       <!-- TAB KONTRAKTOR CONTENT -->
       @if($currentRole !== 'kontraktor')
         <div id="tab-content-kontraktor" class="p-6">
+          @if($currentRole === 'admin_pupr' && $pendingContractors->isNotEmpty())
+          <div class="mb-5 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+            <h3 class="text-sm font-bold text-amber-800 mb-1">Pendaftaran Badan Usaha Baru</h3>
+            <p class="text-xs text-amber-600 mb-3">{{ $pendingContractors->count() }} badan usaha menunggu verifikasi.</p>
+            <div class="space-y-2">
+              @foreach($pendingContractors as $pc)
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white rounded border border-amber-200">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-slate-900">{{ $pc->name }}</p>
+                  <p class="text-xs text-slate-500">NIB {{ $pc->nib }} · {{ $pc->bidang }} · {{ $pc->kualifikasi }}{{ $pc->email ? ' · ' . $pc->email : '' }}</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <a href="{{ route('admin.contractors.show', $pc) }}" class="px-3 py-1.5 rounded border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">Lihat</a>
+                  <form action="{{ route('admin.contractors.approve', $pc) }}" method="POST" class="inline">@csrf<button type="submit" class="px-3 py-1.5 rounded bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">Setujui</button></form>
+                  <form action="{{ route('admin.contractors.reject', $pc) }}" method="POST" class="inline" onsubmit="return confirm('Tolak pendaftaran badan usaha ini?')">@csrf<button type="submit" class="px-3 py-1.5 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-700">Tolak</button></form>
+                </div>
+              </div>
+              @endforeach
+            </div>
+          </div>
+          @endif
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -169,6 +190,7 @@
                   <th class="pb-3 font-semibold">Bidang</th>
                   <th class="pb-3 font-semibold">Kualifikasi</th>
                   <th class="pb-3 font-semibold">Rating</th>
+                  <th class="pb-3 font-semibold">Status</th>
                   <th class="pb-3 font-semibold text-right">Aksi</th>
                 </tr>
               </thead>
@@ -185,6 +207,15 @@
                     <td class="py-4">{{ $c->bidang }}</td>
                     <td class="py-4"><span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 uppercase">{{ $c->kualifikasi }}</span></td>
                     <td class="py-4 font-semibold text-amber-600"><i class="ph-fill ph-star"></i> {{ number_format($c->rating, 1) }}</td>
+                    <td class="py-4">
+                      @if($c->status === 'pending')
+                        <span class="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10px] font-bold text-amber-700 uppercase">Menunggu</span>
+                      @elseif($c->status === 'rejected')
+                        <span class="px-2 py-0.5 rounded bg-red-100 border border-red-300 text-[10px] font-bold text-red-700 uppercase">Ditolak</span>
+                      @else
+                        <span class="px-2 py-0.5 rounded bg-emerald-100 border border-emerald-300 text-[10px] font-bold text-emerald-700 uppercase">Disetujui</span>
+                      @endif
+                    </td>
                     <td class="py-4 text-right space-x-2">
                       <a href="{{ route('admin.contractors.show', $c) }}" class="p-1.5 text-slate-500 hover:text-gov-900 rounded hover:bg-slate-50 inline-block text-xs" title="Lihat Profil">
                         <i class="ph-bold ph-eye text-base"></i>
@@ -205,7 +236,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="7" class="py-8 text-center text-slate-400 font-medium">Belum ada data kontraktor.</td>
+                    <td colspan="8" class="py-8 text-center text-slate-400 font-medium">Belum ada data kontraktor.</td>
                   </tr>
                 @endforelse
               </tbody>
@@ -673,7 +704,8 @@
             </div>
           </div>
 
-          <!-- Role Switcher Section -->
+          <!-- Role Switcher Section (hanya aktif di environment lokal) -->
+          @if(app()->environment('local'))
           <div class="space-y-2 pt-2 border-t border-slate-800">
             <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Simulasi Uji Coba Peran (Switch Account)</span>
             <div class="grid grid-cols-1 gap-2">
@@ -687,6 +719,7 @@
               </a>
             </div>
           </div>
+          @endif
 
           <!-- System Status Footer -->
           <div class="p-3 bg-slate-900 rounded border border-slate-800 text-[10px] space-y-1 text-slate-400 font-mono">
@@ -896,7 +929,7 @@
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Penyedia Jasa (Pelaksana)</label>
                 <select name="contractor_id" id="p-contractor" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-gov-900 transition-all">
-                  @foreach($contractors as $c)
+                  @foreach($approvedContractors as $c)
                     <option value="{{ $c->id }}">{{ $c->name }}</option>
                   @endforeach
                 </select>

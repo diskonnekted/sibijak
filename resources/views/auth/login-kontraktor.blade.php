@@ -130,6 +130,7 @@
       <!-- Footer Info -->
       <div class="pt-2 border-t border-slate-800/80 text-center">
         <p class="text-[11px] text-slate-500">Aplikasi Web Mobile Pelaporan Progress Proyek Fisik</p>
+        <a href="{{ route('password.request') }}" class="mt-1 inline-block text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors">Lupa kata sandi?</a>
       </div>
 
     </div>

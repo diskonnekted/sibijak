@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 
 // Public Portal
@@ -35,12 +36,22 @@ Route::post('/pengawas/login', [DashboardController::class, 'pengawasLogin']);
 Route::post('/logout', [DashboardController::class, 'logout'])->name('logout');
 
 // Simulated Login (For switcher inside admin panel)
-Route::get('/sim-login/{user}', function (\App\Models\User $user) {
-    Auth::login($user);
-    if ($user->role === 'kontraktor') return redirect()->route('kontraktor.dashboard');
-    if ($user->role === 'pemeriksa_lapangan') return redirect()->route('pengawas.dashboard');
-    return redirect()->route('admin.dashboard');
-})->name('sim-login')->middleware('auth');
+// SECURITY: hanya aktif di environment lokal. Di produksi route ini TIDAK terdaftar
+// sehingga tidak bisa dipakai untuk privilege escalation antar role.
+if (app()->environment('local')) {
+    Route::get('/sim-login/{user}', function (\App\Models\User $user) {
+        Auth::login($user);
+        if ($user->role === 'kontraktor') return redirect()->route('kontraktor.dashboard');
+        if ($user->role === 'pemeriksa_lapangan') return redirect()->route('pengawas.dashboard');
+        return redirect()->route('admin.dashboard');
+    })->name('sim-login')->middleware('auth');
+}
+
+// Lupa & reset kata sandi (password reset flow)
+Route::get('/password/forgot', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
+Route::post('/password/email', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+Route::get('/password/reset/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/password/reset', [PasswordResetController::class, 'resetPassword'])->name('password.update');
 
 // Admin Dashboard protected by auth & role:admin_pupr
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])->group(function () {
@@ -54,6 +65,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin_pupr'])-
     Route::post('/contractors', [DashboardController::class, 'storeContractor'])->name('contractors.store');
     Route::put('/contractors/{contractor}', [DashboardController::class, 'updateContractor'])->name('contractors.update');
     Route::delete('/contractors/{contractor}', [DashboardController::class, 'deleteContractor'])->name('contractors.delete');
+
+    // Verifikasi pendaftaran badan usaha (approve/reject + auto-create akun)
+    Route::post('/contractors/{contractor}/approve', [DashboardController::class, 'approveContractor'])->name('contractors.approve');
+    Route::post('/contractors/{contractor}/reject', [DashboardController::class, 'rejectContractor'])->name('contractors.reject');
     
     // Projects CRUD
     Route::post('/projects', [DashboardController::class, 'storeProject'])->name('projects.store');

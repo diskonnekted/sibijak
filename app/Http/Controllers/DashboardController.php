@@ -39,6 +39,9 @@ class DashboardController extends Controller
 
         $query = Contractor::query();
 
+        // Hanya badan usaha yang sudah disetujui admin yang tampil di halaman publik
+        $query->where('status', 'approved');
+
         if ($search) {
             $query->where('name', 'like', "%{$search}%")
                   ->orWhere('pj', 'like', "%{$search}%");
@@ -127,15 +130,21 @@ class DashboardController extends Controller
             'nib' => 'required|string|unique:contractors,nib',
             'pj' => 'required|string|max:255',
             'alamat' => 'required|string',
-            'email' => 'nullable|email',
+            'email' => 'required|email|max:255',
             'telepon' => 'nullable|string',
         ]);
 
         $validated['rating'] = 5.0;
+        // Pendaftaran baru masuk status "pending" - harus diverifikasi admin dulu
+        // sebelum tampil di halaman publik dan sebelum akun login dibuat
+        $validated['status'] = 'pending';
 
         Contractor::create($validated);
 
-        return redirect()->route('badanusaha')->with('success', 'Pendaftaran Badan Usaha berhasil diajukan.');
+        // Catat ke audit trail
+        ActivityLog::log('registration', $validated['name'] . ' mendaftar badan usaha (menunggu verifikasi).');
+
+        return redirect()->route('daftar')->with('success', 'Pendaftaran Badan Usaha berhasil diajukan. Data Anda akan diverifikasi admin dalam 1-3 hari kerja.');
     }
 
     // Submit Pendaftaran Pelatihan
@@ -155,9 +164,19 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'Mohon maaf, kuota pelatihan sudah penuh.');
         }
 
+        // Cegah pendaftaran ganda dengan NIK yang sama di pelatihan yang sama
+        $sudahTerdaftar = $training->participants()->where('nik', $validated['nik'])->exists();
+        if ($sudahTerdaftar) {
+            return redirect()->back()->with('error', 'NIK tersebut sudah terdaftar pada pelatihan ini.');
+        }
+
+        // Simpan data peserta secara lengkap (nama/NIK/instansi/kontak) - tidak lagi dibuang
+        $training->participants()->create($validated);
+
+        // Jaga pendaftar_count tetap sinkron dengan jumlah peserta sebenarnya
         $training->increment('pendaftar_count');
 
-        return redirect()->route('pelatihan')->with('success', 'Pendaftaran Pelatihan berhasil.');
+        return redirect()->route('daftar')->with('success', 'Pendaftaran Pelatihan berhasil.');
     }
 
     // Helper: Anti Brute-Force Rate Limiter Key
@@ -417,6 +436,12 @@ class DashboardController extends Controller
             ];
         }
 
+        // Pendaftaran badan usaha yang menunggu verifikasi admin
+        $pendingContractors = Contractor::where('status', 'pending')->latest()->get();
+
+        // Kontraktor terverifikasi (untuk dropdown penugasan proyek)
+        $approvedContractors = Contractor::where('status', 'approved')->orderBy('name')->get();
+
         $trainings = Training::all();
         $regulations = Regulation::all();
         $news = NewsItem::all();
@@ -435,7 +460,7 @@ class DashboardController extends Controller
         // Get recent activity logs for mobile audit tab preview
         $activityLogs = ActivityLog::with('user')->orderBy('created_at', 'desc')->take(10)->get();
 
-        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'upcomingDeadlines', 'activityLogs'));
+        return view('admin.dashboard', compact('contractors', 'projects', 'stats', 'trainings', 'regulations', 'news', 'pendingVerifications', 'upcomingDeadlines', 'activityLogs', 'pendingContractors', 'approvedContractors'));
     }
 
     // Admin Map Monitoring Page filtered by role
@@ -621,6 +646,60 @@ class DashboardController extends Controller
 
         $contractor->delete();
         return redirect()->route('admin.dashboard')->with('success', 'Kontraktor berhasil dihapus.');
+    }
+
+    // Verifikasi pendaftaran badan usaha: setujui + buat akun login kontraktor
+    public function approveContractor(Contractor $contractor)
+    {
+        if (auth()->user()->role !== 'admin_pupr') {
+            return redirect()->back()->with('error', 'Akses ditolak. Hanya Admin PUPR yang dapat menyetujui pendaftaran.');
+        }
+
+        $contractor->status = 'approved';
+        $contractor->save();
+
+        $email = $contractor->email;
+        $existingUser = User::where('contractor_id', $contractor->id)
+            ->orWhere(function ($q) use ($email) {
+                $q->where('email', $email);
+            })
+            ->first();
+
+        if ($existingUser) {
+            $existingUser->update(['role' => 'kontraktor', 'contractor_id' => $contractor->id]);
+            $message = 'Badan usaha disetujui. Akun login sudah tersedia (' . $existingUser->email . ').';
+        } elseif ($email) {
+            $password = Str::random(10);
+            User::create([
+                'name' => $contractor->name,
+                'email' => $email,
+                'password' => $password,
+                'role' => 'kontraktor',
+                'contractor_id' => $contractor->id,
+            ]);
+            $message = 'Badan usaha disetujui. Akun login dibuat — email: ' . $email . ', password sementara: ' . $password . ' (catat & bagikan ke kontraktor).';
+        } else {
+            $message = 'Badan usaha disetujui. Catatan: email tidak diisi, akun login dibuat manual oleh admin.';
+        }
+
+        ActivityLog::log('contractor_approved', 'Badan usaha "' . $contractor->name . '" disetujui.');
+
+        return redirect()->route('admin.dashboard')->with('success', $message);
+    }
+
+    // Verifikasi pendaftaran badan usaha: tolak
+    public function rejectContractor(Contractor $contractor)
+    {
+        if (auth()->user()->role !== 'admin_pupr') {
+            return redirect()->back()->with('error', 'Akses ditolak. Hanya Admin PUPR yang dapat menolak pendaftaran.');
+        }
+
+        $contractor->status = 'rejected';
+        $contractor->save();
+
+        ActivityLog::log('contractor_rejected', 'Badan usaha "' . $contractor->name . '" ditolak.');
+
+        return redirect()->route('admin.dashboard')->with('success', 'Pendaftaran badan usaha ditolak.');
     }
 
     // CRUD Project

@@ -12,4 +12,9 @@ class Training extends Model
     {
         return $this->belongsToMany(Contractor::class, 'contractor_training');
     }
+
+    public function participants()
+    {
+        return $this->hasMany(TrainingParticipant::class);
+    }
 }
